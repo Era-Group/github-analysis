@@ -605,6 +605,18 @@ html[dir="rtl"] .export-menu button { text-align: right; flex-direction: row-rev
       <input type="text" id="inp-author" placeholder="octocat" autocomplete="off" />
     </div>
 
+    <!-- Commit stats limit -->
+    <div class="form-group" style="margin-top:12px">
+      <label for="inp-stats-limit"><span data-i18n="commitStatsLimit">Commit Stats Limit</span> <span data-i18n="commitStatsLimitHint">(per-commit additions/deletions fetch)</span></label>
+      <select id="inp-stats-limit" style="width:100%;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;color:var(--text-primary);font-size:14px;margin-top:4px">
+        <option value="50">50</option>
+        <option value="100">100</option>
+        <option value="200">200</option>
+        <option value="500">500</option>
+        <option value="0" selected data-i18n="unlimited">Unlimited</option>
+      </select>
+    </div>
+
     <div class="periods-grid">
       <div class="period-card period-a">
         <div class="period-title">
@@ -829,6 +841,9 @@ const TRANSLATIONS = {
     deselectAll: 'Deselect All',
     authorFilter: 'Author Filter',
     authorFilterHint: '(commits by this user)',
+    commitStatsLimit: 'Commit Stats Limit',
+    commitStatsLimitHint: '(per-commit additions/deletions fetch)',
+    unlimited: 'Unlimited',
     periodALabel: 'Period A — Before AI / Reference',
     periodBLabel: 'Period B — After AI / Comparison',
     from: 'From',
@@ -947,6 +962,9 @@ const TRANSLATIONS = {
     deselectAll: 'إلغاء الكل',
     authorFilter: 'فلتر المؤلف',
     authorFilterHint: '(الـ commits الخاصة بهذا المستخدم)',
+    commitStatsLimit: 'حد إحصاءات الـ Commits',
+    commitStatsLimitHint: '(جلب الإضافات/الحذوفات لكل commit)',
+    unlimited: 'بلا حد',
     periodALabel: 'الفترة A — قبل الذكاء الاصطناعي / المرجع',
     periodBLabel: 'الفترة B — بعد الذكاء الاصطناعي / المقارنة',
     from: 'من',
@@ -1065,6 +1083,7 @@ const app = {
   },
   charts: {},
   skippedRepos: 0,
+  commitStatsLimit: 0, // 0 = unlimited
 };
 
 const t = (key, ...args) => {
@@ -1376,6 +1395,7 @@ async function startAnalysis() {
 
   const author = document.getElementById('inp-author').value.trim() || app.username;
   app.author = author;
+  app.commitStatsLimit = parseInt(document.getElementById('inp-stats-limit').value, 10) || 0;
   app.selectedRepos = selected;
   app.periodA = { start: aStart, end: aEnd };
   app.periodB = { start: bStart, end: bEnd };
@@ -1455,9 +1475,17 @@ async function fetchCommits(owner, repo, period) {
 // Batched per-commit detail fetcher (max 10 concurrent to protect rate limit)
 async function fetchCommitStats() {
   const CONCURRENCY = 10;
+  const limit = app.commitStatsLimit; // 0 = unlimited
+  // Sample evenly from each period to stay within the chosen limit
+  const sample = (arr, n) => {
+    if (n === 0 || arr.length <= n) return arr;
+    const step = arr.length / n;
+    return Array.from({ length: n }, (_, i) => arr[Math.floor(i * step)]);
+  };
+  const halfLimit = limit > 0 ? Math.ceil(limit / 2) : 0;
   const allCommits = [
-    ...app.data.a.commits.map(c => ({ ...c, _period: 'a' })),
-    ...app.data.b.commits.map(c => ({ ...c, _period: 'b' })),
+    ...sample(app.data.a.commits, halfLimit).map(c => ({ ...c, _period: 'a' })),
+    ...sample(app.data.b.commits, halfLimit).map(c => ({ ...c, _period: 'b' })),
   ];
   if (allCommits.length === 0) return;
 
