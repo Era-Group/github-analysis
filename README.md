@@ -5,7 +5,6 @@
 **Measure the real impact of AI coding tools on your development workflow.**
 A zero-dependency, single-file dashboard that compares two time periods side-by-side — before and after adopting AI assistants like GitHub Copilot, Cursor, or Claude.
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Try%20it%20now-238636?style=for-the-badge&logo=github)](https://your-username.github.io/GithubDashboard/)
 [![Single File](https://img.shields.io/badge/Architecture-Single%20HTML%20File-58a6ff?style=for-the-badge)]()
 [![No Dependencies](https://img.shields.io/badge/Dependencies-Zero%20(CDN%20only)-3fb950?style=for-the-badge)]()
 [![License](https://img.shields.io/badge/License-MIT-d29922?style=for-the-badge)]()
@@ -64,14 +63,14 @@ A weighted composite metric combining commit frequency, lines of code, files cha
 
 ### Option A — Open directly (no server needed)
 ```
-git clone https://github.com/your-username/GithubDashboard.git
+git clone https://github.com/sadeem-cloud-org/github-analysis.git
 open index.html
 ```
 
 ### Option B — GitHub Pages
 1. Fork this repo
 2. Go to **Settings → Pages → Source → main branch / root**
-3. Your dashboard is live at `https://your-username.github.io/GithubDashboard/`
+3. Your dashboard is live at `https://sadeem-cloud-org.github.io/github-analysis/`
 
 ### Option C — Any static host
 Just upload `index.html` to Netlify, Vercel, S3, or any web server. One file, done.
@@ -122,6 +121,17 @@ Both periods are then normalized to a 0–100 scale so the scores are always com
 
 ## 🖼 Screenshots
 
+> **To add screenshots:** take your screenshots, then upload them to the `.github/` folder in this repo
+> (create it if it doesn't exist). Name them exactly as referenced below and they'll appear here automatically.
+
+| File to upload | What to capture |
+|---|---|
+| `.github/preview-dark.png` | Full dashboard in dark mode (hero image at the top) |
+| `.github/screenshot-setup.png` | The setup / token entry screen |
+| `.github/screenshot-overview.png` | Overview section with KPI cards and commits chart |
+| `.github/screenshot-charts.png` | Charts section showing code volume & language breakdown |
+| `.github/screenshot-repos.png` | Repositories card grid or the repo details modal |
+
 <table>
   <tr>
     <td><b>Setup Screen</b></td>
@@ -148,7 +158,7 @@ Both periods are then normalized to a 0–100 scale so the scores are always com
 Issues and PRs are welcome. Since the entire app is one HTML file, contributions are as simple as editing `index.html`.
 
 ```bash
-git clone https://github.com/your-username/GithubDashboard.git
+git clone https://github.com/sadeem-cloud-org/github-analysis.git
 cd GithubDashboard
 # Edit index.html, open in browser, done.
 ```
