@@ -1488,7 +1488,9 @@ function selectOwnedRepos() {
   document.querySelectorAll('#repos-list .repo-item input[type=checkbox]').forEach(cb => {
     const fullName = (cb.value || '').toLowerCase();
     const ownerLogin = (cb.dataset.ownerLogin || '').toLowerCase();
-    cb.checked = ownerLogin === targetOwner || fullName.startsWith(`${targetOwner}/`);
+    if (ownerLogin === targetOwner || fullName.startsWith(`${targetOwner}/`)) {
+      cb.checked = true;
+    }
   });
   updateRepoSelectionLabel();
 }
@@ -1498,7 +1500,9 @@ function selectOrgRepos() {
   document.querySelectorAll('#repos-list .repo-item input[type=checkbox]').forEach(cb => {
     const ownerLogin = (cb.dataset.ownerLogin || '').toLowerCase();
     const ownerType = cb.dataset.ownerType || '';
-    cb.checked = orgLogin ? ownerLogin === orgLogin : ownerType === 'Organization';
+    if (orgLogin ? ownerLogin === orgLogin : ownerType === 'Organization') {
+      cb.checked = true;
+    }
   });
   updateRepoSelectionLabel();
 }
