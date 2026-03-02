@@ -851,6 +851,11 @@ html[dir="rtl"] .export-menu button { text-align: right; flex-direction: row-rev
     <div class="content-section" id="section-developers">
       <div class="period-legend" id="legend-developers"></div>
       <div class="chart-card">
+        <div class="chart-title" data-i18n="developerRatings">Developer Ratings</div>
+        <div class="chart-subtitle" data-i18n="developerRatingsSubtitle">Rating out of 10 = 50% lines + 20% commits + 20% active days + 10% PRs</div>
+        <div class="chart-wrap"><canvas id="chart-developer-ratings" style="max-height:320px"></canvas></div>
+      </div>
+      <div class="chart-card">
         <div class="chart-title" data-i18n="developersPerformance">Developers Performance</div>
         <div class="chart-subtitle" data-i18n="developersSubtitle">One row per developer with score, activity, code, PRs, and collaboration trend</div>
         <div class="table-wrap mt-4" id="developers-table-wrap"></div>
@@ -942,6 +947,8 @@ const TRANSLATIONS = {
     prsSubtitle: 'Per-repository comparison with delta',
     developersPerformance: 'Developers Performance',
     developersSubtitle: 'One row per developer with score, activity, code, PRs, and collaboration trend',
+    developerRatings: 'Developer Ratings',
+    developerRatingsSubtitle: 'Top 12 in Period B. Rating out of 10 = 50% lines + 20% commits + 20% active days + 10% PRs',
     periodA: 'Period A',
     periodB: 'Period B',
     beforeAI: 'Before AI',
@@ -1018,8 +1025,8 @@ const TRANSLATIONS = {
     deletionsB: 'Deletions B',
     noDevelopers: 'No developer activity matched the current filters.',
     thDeveloper: 'Developer',
-    thScoreA: 'Score A',
-    thScoreB: 'Score B',
+    thScoreA: 'Rating A / 10',
+    thScoreB: 'Rating B / 10',
     thCommits: 'Commits',
     thNetLines: 'Net Lines',
     thActiveDays: 'Active Days',
@@ -1090,6 +1097,8 @@ const TRANSLATIONS = {
     prsSubtitle: 'مقارنة لكل مستودع مع الفارق',
     developersPerformance: 'أداء المطورين',
     developersSubtitle: 'سطر لكل مطور مع الدرجة والنشاط والكود والـ PRs واتجاه الأداء',
+    developerRatings: 'تقييم المطورين',
+    developerRatingsSubtitle: 'أفضل 12 في الفترة B. التقييم من 10 = 50% للأسطر + 20% للـ commits + 20% للأيام النشطة + 10% للـ PRs',
     periodA: 'الفترة A',
     periodB: 'الفترة B',
     beforeAI: 'قبل الذكاء الاصطناعي',
@@ -1163,8 +1172,8 @@ const TRANSLATIONS = {
     deletionsB: 'حذف B',
     noDevelopers: 'لا توجد أنشطة مطورين مطابقة للفلاتر الحالية.',
     thDeveloper: 'المطور',
-    thScoreA: 'درجة A',
-    thScoreB: 'درجة B',
+    thScoreA: 'تقييم A / 10',
+    thScoreB: 'تقييم B / 10',
     thCommits: 'Commits',
     thNetLines: 'صافي الأسطر',
     thActiveDays: 'الأيام النشطة',
@@ -1190,6 +1199,7 @@ function emptyPeriodData() {
     commitsByRepo: {},
     additions: 0,
     deletions: 0,
+    lineVolume: 0,
     filesChanged: 0,
     weeklyStats: {},
     prs: [],
@@ -1967,6 +1977,7 @@ function buildDeveloperReport() {
     return Math.max(1, Math.round((new Date(p.end) - new Date(p.start)) / 86400000));
   };
   const maxes = { commitFreq: 0.01, netLinesPerDay: 1, activeRatio: 0.01, prMergeRate: 1 };
+  const ratingMaxes = { lineVolume: 1, commits: 1, activeDays: 1, prsMerged: 1 };
 
   developers.forEach(dev => {
     periods.forEach(period => {
@@ -1976,6 +1987,10 @@ function buildDeveloperReport() {
       maxes.netLinesPerDay = Math.max(maxes.netLinesPerDay, Math.max(0, stats.netLinesPerDay));
       maxes.activeRatio = Math.max(maxes.activeRatio, stats.activeRatio);
       maxes.prMergeRate = Math.max(maxes.prMergeRate, stats.prMergeRate);
+      ratingMaxes.lineVolume = Math.max(ratingMaxes.lineVolume, stats.lineVolume);
+      ratingMaxes.commits = Math.max(ratingMaxes.commits, stats.commits);
+      ratingMaxes.activeDays = Math.max(ratingMaxes.activeDays, stats.activeDaysCount);
+      ratingMaxes.prsMerged = Math.max(ratingMaxes.prsMerged, stats.prsMerged);
     });
   });
 
@@ -1983,13 +1998,16 @@ function buildDeveloperReport() {
     .map(dev => {
       dev.a.score = computeDeveloperScore(dev.a, maxes);
       dev.b.score = computeDeveloperScore(dev.b, maxes);
+      dev.a.rating = computeDeveloperRating(dev.a, ratingMaxes);
+      dev.b.rating = computeDeveloperRating(dev.b, ratingMaxes);
       dev.deltaScore = dev.b.score - dev.a.score;
+      dev.deltaRating = round1(dev.b.rating - dev.a.rating);
       const hasActivity = dev.a.commits + dev.a.prsOpened + dev.a.issuesOpened + dev.b.commits + dev.b.prsOpened + dev.b.issuesOpened > 0;
       dev.assessmentKey = !hasActivity
         ? 'assessmentInactive'
-        : dev.deltaScore >= 10
+        : dev.deltaRating >= 1
           ? 'assessmentImproved'
-          : dev.deltaScore <= -10
+          : dev.deltaRating <= -1
             ? 'assessmentReview'
             : 'assessmentStable';
       dev.assessmentClass = dev.assessmentKey === 'assessmentImproved'
@@ -2000,9 +2018,10 @@ function buildDeveloperReport() {
       return dev;
     })
     .sort((left, right) =>
+      right.b.rating - left.b.rating ||
       right.b.score - left.b.score ||
       right.b.commits - left.b.commits ||
-      right.deltaScore - left.deltaScore ||
+      right.deltaRating - left.deltaRating ||
       left.label.localeCompare(right.label)
     );
 }
@@ -2027,6 +2046,7 @@ function createDeveloperPeriodStats() {
     prMergeRate: 0,
     avgMergeHours: null,
     score: 0,
+    rating: 0,
   };
 }
 
@@ -2036,6 +2056,7 @@ function finalizeDeveloperPeriodStats(stats, days) {
   stats.activeReposCount = [...stats.repos].filter(Boolean).length;
   stats.commitFreq = stats.commits / Math.max(1, days);
   stats.netLines = stats.additions - stats.deletions;
+  stats.lineVolume = stats.additions + stats.deletions;
   stats.netLinesPerDay = stats.netLines / Math.max(1, days);
   stats.activeRatio = (stats.activeDaysCount / Math.max(1, days)) * 100;
   stats.prMergeRate = stats.prsOpened > 0 ? (stats.prsMerged / stats.prsOpened) * 100 : 0;
@@ -2057,6 +2078,23 @@ function computeDeveloperScore(stats, maxes) {
   );
 }
 
+function computeDeveloperRating(stats, maxes) {
+  const linesScore = (stats.lineVolume / Math.max(maxes.lineVolume, 1)) * 10;
+  const commitsScore = (stats.commits / Math.max(maxes.commits, 1)) * 10;
+  const activeDaysScore = (stats.activeDaysCount / Math.max(maxes.activeDays, 1)) * 10;
+  const prsScore = (stats.prsMerged / Math.max(maxes.prsMerged, 1)) * 10;
+  return round1(
+    linesScore * 0.5 +
+    commitsScore * 0.2 +
+    activeDaysScore * 0.2 +
+    prsScore * 0.1
+  );
+}
+
+function round1(n) {
+  return Math.round(n * 10) / 10;
+}
+
 // ═══════════════════════════════════════════════════════════════════
 //  RENDER DASHBOARD
 // ═══════════════════════════════════════════════════════════════════
@@ -2074,6 +2112,7 @@ function renderDashboard() {
   renderChangedLinesChart();
   renderHeatmap();
   renderPRTable();
+  renderDeveloperRatingsChart();
   renderDevelopersTable();
   renderReposOverview();
   renderInsights(a, b, scoreA, scoreB);
@@ -2399,6 +2438,61 @@ function renderChangedLinesChart() {
   });
 }
 
+function renderDeveloperRatingsChart() {
+  const canvas = document.getElementById('chart-developer-ratings');
+  if (!canvas) return;
+  const topDevelopers = app.developers.slice(0, 12);
+  if (topDevelopers.length === 0) return;
+  const ctx = canvas.getContext('2d');
+  app.charts.developerRatings?.destroy();
+  app.charts.developerRatings = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: topDevelopers.map(dev => dev.label),
+      datasets: [
+        {
+          label: `${t('periodA')} / 10`,
+          data: topDevelopers.map(dev => dev.a.rating),
+          backgroundColor: 'rgba(88,166,255,.7)',
+          borderColor: '#58a6ff',
+          borderWidth: 1,
+        },
+        {
+          label: `${t('periodB')} / 10`,
+          data: topDevelopers.map(dev => dev.b.rating),
+          backgroundColor: 'rgba(63,185,80,.7)',
+          borderColor: '#3fb950',
+          borderWidth: 1,
+        },
+      ],
+    },
+    options: {
+      ...chartBase(),
+      scales: {
+        ...chartBase().scales,
+        x: {
+          ...chartBase().scales.x,
+          ticks: { color: '#6e7681', maxRotation: 45, minRotation: 0, font: { size: 10 } },
+        },
+        y: {
+          ...chartBase().scales.y,
+          beginAtZero: true,
+          max: 10,
+        },
+      },
+      plugins: {
+        ...chartBase().plugins,
+        tooltip: {
+          ...chartBase().plugins.tooltip,
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}/10`,
+          },
+        },
+      },
+    },
+  });
+}
+
 // ═══════════════════════════════════════════════════════════════════
 //  HEATMAP
 // ═══════════════════════════════════════════════════════════════════
@@ -2519,6 +2613,12 @@ function renderDevelopersTable() {
     const sign = pct > 0 ? '+' : '';
     return `<td class="delta-cell ${cls}">${sign}${pct}%</td>`;
   };
+  const ratingDeltaCell = (a, b) => {
+    const delta = round1(b - a);
+    const cls = delta === 0 ? 'neutral' : delta > 0 ? 'pos' : 'neg';
+    const sign = delta > 0 ? '+' : '';
+    return `<td class="delta-cell ${cls}">${sign}${delta.toFixed(1)}</td>`;
+  };
   const rawDeltaCell = (a, b) => {
     const delta = b - a;
     const cls = delta === 0 ? 'neutral' : delta > 0 ? 'pos' : 'neg';
@@ -2556,9 +2656,9 @@ function renderDevelopersTable() {
         <div>${safeLabel}</div>
         <small style="color:var(--text-muted);font-size:10px">${safeKey}</small>
       </td>
-      <td>${dev.a.score}</td>
-      <td>${dev.b.score}</td>
-      ${deltaCell(dev.a.score, dev.b.score)}
+      <td>${dev.a.rating.toFixed(1)}</td>
+      <td>${dev.b.rating.toFixed(1)}</td>
+      ${ratingDeltaCell(dev.a.rating, dev.b.rating)}
       <td>${dev.a.commits}</td>
       <td>${dev.b.commits}</td>
       ${deltaCell(dev.a.commits, dev.b.commits)}
@@ -2753,8 +2853,10 @@ function exportJSON() {
       key: dev.key,
       assessment: t(dev.assessmentKey),
       periodA: {
+        rating: dev.a.rating,
         score: dev.a.score,
         commits: dev.a.commits,
+        lineVolume: dev.a.lineVolume,
         netLines: dev.a.netLines,
         activeDays: dev.a.activeDaysCount,
         activeRepos: dev.a.activeReposCount,
@@ -2764,8 +2866,10 @@ function exportJSON() {
         issuesClosed: dev.a.issuesClosed,
       },
       periodB: {
+        rating: dev.b.rating,
         score: dev.b.score,
         commits: dev.b.commits,
+        lineVolume: dev.b.lineVolume,
         netLines: dev.b.netLines,
         activeDays: dev.b.activeDaysCount,
         activeRepos: dev.b.activeReposCount,
@@ -2815,11 +2919,13 @@ function exportCSVDevelopers() {
     'Developer',
     'Key',
     'Assessment',
-    'Score A',
-    'Score B',
-    'Score Delta',
+    'Rating A / 10',
+    'Rating B / 10',
+    'Rating Delta',
     'Commits A',
     'Commits B',
+    'Line Volume A',
+    'Line Volume B',
     'Net Lines A',
     'Net Lines B',
     'Active Days A',
@@ -2836,11 +2942,13 @@ function exportCSVDevelopers() {
       dev.label,
       dev.key,
       t(dev.assessmentKey),
-      dev.a.score,
-      dev.b.score,
-      dev.deltaScore,
+      dev.a.rating,
+      dev.b.rating,
+      dev.deltaRating,
       dev.a.commits,
       dev.b.commits,
+      dev.a.lineVolume,
+      dev.b.lineVolume,
       dev.a.netLines,
       dev.b.netLines,
       dev.a.activeDaysCount,
