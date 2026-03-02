@@ -406,6 +406,20 @@ td:first-child { font-family: system-ui, sans-serif; color: var(--text-primary);
 .delta-cell.pos { color: var(--period-b); }
 .delta-cell.neg { color: var(--danger); }
 .delta-cell.neutral { color: var(--text-muted); }
+.assessment-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.assessment-chip.pos { color: var(--period-b); border-color: rgba(63,185,80,.45); background: rgba(63,185,80,.08); }
+.assessment-chip.neg { color: var(--danger); border-color: rgba(248,81,73,.35); background: rgba(248,81,73,.08); }
+.assessment-chip.neutral { color: var(--text-secondary); }
 
 /* AI Insights */
 .insights-panel { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
@@ -584,7 +598,7 @@ html[dir="rtl"] .export-menu button { text-align: right; flex-direction: row-rev
 <div id="screen-config" class="screen">
   <div class="config-card">
     <h2 data-i18n="configTitle">Configure Analysis</h2>
-    <p data-i18n="configSubtitle">Select repositories, set date ranges, and confirm the author filter.</p>
+    <p data-i18n="configSubtitle">Select repositories, set date ranges, and optionally filter developers.</p>
 
     <div class="section-label" data-i18n="repositories">Repositories</div>
     <div class="repos-toolbar">
@@ -601,8 +615,8 @@ html[dir="rtl"] .export-menu button { text-align: right; flex-direction: row-rev
 
     <!-- Author filter -->
     <div class="author-filter form-group">
-      <label for="inp-author"><span data-i18n="authorFilter">Author Filter</span> <span data-i18n="authorFilterHint">(commits by this user)</span></label>
-      <input type="text" id="inp-author" placeholder="octocat" autocomplete="off" />
+      <label for="inp-author"><span data-i18n="authorFilter">Developer Filter</span> <span data-i18n="authorFilterHint">(optional: username, name, or email)</span></label>
+      <input type="text" id="inp-author" placeholder="octocat, hubot" autocomplete="off" />
     </div>
 
     <!-- Commit stats limit -->
@@ -685,6 +699,10 @@ html[dir="rtl"] .export-menu button { text-align: right; flex-direction: row-rev
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M7.177 3.073L9.573.677A.25.25 0 0110 .854v4.792a.25.25 0 01-.427.177L7.177 3.427a.25.25 0 010-.354zM3.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122v5.256a2.251 2.251 0 11-1.5 0V5.372A2.25 2.25 0 011.5 3.25zM11 2.5h-1V4h1a1 1 0 011 1v5.628a2.251 2.251 0 101.5 0V5A2.5 2.5 0 0011 2.5zm1 10.25a.75.75 0 111.5 0 .75.75 0 01-1.5 0zM3.75 12a.75.75 0 100 1.5.75.75 0 000-1.5z"/></svg>
         <span data-i18n="prsIssues">PRs &amp; Issues</span>
       </div>
+      <div class="nav-item" data-section="developers" onclick="switchSection('developers')">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M10 5.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM1.5 13a3.5 3.5 0 117 0v.25a.75.75 0 01-.75.75h-5.5a.75.75 0 01-.75-.75V13zm9.25-6.5a1.75 1.75 0 100-3.5 1.75 1.75 0 000 3.5zm-1.54 1.47a.75.75 0 01.96-.46A3.75 3.75 0 0114.5 11v2.25a.75.75 0 01-1.5 0V11a2.25 2.25 0 00-1.83-2.21.75.75 0 01-.96-.46z"/></svg>
+        <span data-i18n="developers">Developers</span>
+      </div>
       <div class="nav-item" data-section="repos" onclick="switchSection('repos')">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 2.5A2.5 2.5 0 014.5 0h8.75a.75.75 0 01.75.75v12.5a.75.75 0 01-.75.75h-2.5a.75.75 0 110-1.5h1.75v-2h-8a1 1 0 00-.714 1.7.75.75 0 01-1.072 1.05A2.495 2.495 0 012 11.5v-9zm10.5-1V9h-8c-.356 0-.694.074-1 .208V2.5a1 1 0 011-1h8zM5 12.25v3.25a.25.25 0 00.4.2l1.45-1.087a.25.25 0 01.3 0L8.6 15.7a.25.25 0 00.4-.2v-3.25a.25.25 0 00-.25-.25h-3.5a.25.25 0 00-.25.25z"/></svg>
         <span data-i18n="repositories">Repositories</span>
@@ -717,6 +735,7 @@ html[dir="rtl"] .export-menu button { text-align: right; flex-direction: row-rev
           <div class="export-menu hidden" id="export-menu">
             <button onclick="exportJSON()">📄 JSON</button>
             <button onclick="exportCSVSummary()">📊 CSV Summary</button>
+            <button onclick="exportCSVDevelopers()">👥 Developers CSV</button>
             <hr>
             <button onclick="exportCSVCommits('a')">📋 Commits A (CSV)</button>
             <button onclick="exportCSVCommits('b')">📋 Commits B (CSV)</button>
@@ -795,6 +814,16 @@ html[dir="rtl"] .export-menu button { text-align: right; flex-direction: row-rev
       </div>
     </div>
 
+    <!-- DEVELOPERS -->
+    <div class="content-section" id="section-developers">
+      <div class="period-legend" id="legend-developers"></div>
+      <div class="chart-card">
+        <div class="chart-title" data-i18n="developersPerformance">Developers Performance</div>
+        <div class="chart-subtitle" data-i18n="developersSubtitle">One row per developer with score, activity, code, PRs, and collaboration trend</div>
+        <div class="table-wrap mt-4" id="developers-table-wrap"></div>
+      </div>
+    </div>
+
     <!-- REPOSITORIES -->
     <div class="content-section" id="section-repos">
       <div class="repos-overview-grid" id="repos-overview-grid"></div>
@@ -835,12 +864,12 @@ const TRANSLATIONS = {
     connect: 'Connect to GitHub',
     connecting: 'Connecting...',
     configTitle: 'Configure Analysis',
-    configSubtitle: 'Select repositories, set date ranges, and confirm the author filter.',
+    configSubtitle: 'Select repositories, set date ranges, and optionally filter developers.',
     repositories: 'Repositories',
     selectAll: 'Select All',
     deselectAll: 'Deselect All',
-    authorFilter: 'Author Filter',
-    authorFilterHint: '(commits by this user)',
+    authorFilter: 'Developer Filter',
+    authorFilterHint: '(optional: username, name, or email)',
     commitStatsLimit: 'Commit Stats Limit',
     commitStatsLimitHint: '(per-commit additions/deletions fetch)',
     unlimited: 'Unlimited',
@@ -858,6 +887,7 @@ const TRANSLATIONS = {
     charts: 'Charts',
     heatmap: 'Heatmap',
     prsIssues: 'PRs & Issues',
+    developers: 'Developers',
     aiInsights: 'AI Insights',
     newAnalysis: 'New Analysis',
     commitsOverTime: 'Commits Over Time',
@@ -872,6 +902,8 @@ const TRANSLATIONS = {
     heatmapSubtitle: 'Each cell = one day. Color intensity = commit count.',
     prsSummary: 'PRs & Issues Summary',
     prsSubtitle: 'Per-repository comparison with delta',
+    developersPerformance: 'Developers Performance',
+    developersSubtitle: 'One row per developer with score, activity, code, PRs, and collaboration trend',
     periodA: 'Period A',
     periodB: 'Period B',
     beforeAI: 'Before AI',
@@ -944,6 +976,22 @@ const TRANSLATIONS = {
     additionsB: 'Additions B',
     deletionsA: 'Deletions A',
     deletionsB: 'Deletions B',
+    noDevelopers: 'No developer activity matched the current filters.',
+    thDeveloper: 'Developer',
+    thScoreA: 'Score A',
+    thScoreB: 'Score B',
+    thCommits: 'Commits',
+    thNetLines: 'Net Lines',
+    thActiveDays: 'Active Days',
+    thActiveRepos: 'Repos',
+    thPRMerged: 'PRs Merged',
+    thIssuesClosed: 'Issues Closed',
+    thAssessment: 'Assessment',
+    filterLabel: 'Filter',
+    assessmentImproved: 'Improved',
+    assessmentStable: 'Stable',
+    assessmentReview: 'Needs Review',
+    assessmentInactive: 'No Activity',
   },
   ar: {
     title: 'تحليل الإنتاجية',
@@ -956,12 +1004,12 @@ const TRANSLATIONS = {
     connect: 'الاتصال بـ GitHub',
     connecting: 'جارٍ الاتصال...',
     configTitle: 'إعداد التحليل',
-    configSubtitle: 'اختر المستودعات، حدد النطاقات الزمنية، وتأكد من فلتر المؤلف.',
+    configSubtitle: 'اختر المستودعات، حدد النطاقات الزمنية، ويمكنك تصفية المطورين اختيارياً.',
     repositories: 'المستودعات',
     selectAll: 'تحديد الكل',
     deselectAll: 'إلغاء الكل',
-    authorFilter: 'فلتر المؤلف',
-    authorFilterHint: '(الـ commits الخاصة بهذا المستخدم)',
+    authorFilter: 'فلتر المطور',
+    authorFilterHint: '(اختياري: اسم مستخدم أو اسم أو بريد)',
     commitStatsLimit: 'حد إحصاءات الـ Commits',
     commitStatsLimitHint: '(جلب الإضافات/الحذوفات لكل commit)',
     unlimited: 'بلا حد',
@@ -979,6 +1027,7 @@ const TRANSLATIONS = {
     charts: 'الرسوم البيانية',
     heatmap: 'خريطة النشاط',
     prsIssues: 'PRs والمشكلات',
+    developers: 'المطورون',
     aiInsights: 'تحليلات الذكاء الاصطناعي',
     newAnalysis: 'تحليل جديد',
     commitsOverTime: 'Commits بمرور الوقت',
@@ -993,6 +1042,8 @@ const TRANSLATIONS = {
     heatmapSubtitle: 'كل خلية = يوم واحد. كثافة اللون = عدد الـ commits.',
     prsSummary: 'ملخص PRs والمشكلات',
     prsSubtitle: 'مقارنة لكل مستودع مع الفارق',
+    developersPerformance: 'أداء المطورين',
+    developersSubtitle: 'سطر لكل مطور مع الدرجة والنشاط والكود والـ PRs واتجاه الأداء',
     periodA: 'الفترة A',
     periodB: 'الفترة B',
     beforeAI: 'قبل الذكاء الاصطناعي',
@@ -1062,25 +1113,57 @@ const TRANSLATIONS = {
     additionsB: 'إضافات B',
     deletionsA: 'حذف A',
     deletionsB: 'حذف B',
+    noDevelopers: 'لا توجد أنشطة مطورين مطابقة للفلاتر الحالية.',
+    thDeveloper: 'المطور',
+    thScoreA: 'درجة A',
+    thScoreB: 'درجة B',
+    thCommits: 'Commits',
+    thNetLines: 'صافي الأسطر',
+    thActiveDays: 'الأيام النشطة',
+    thActiveRepos: 'المستودعات',
+    thPRMerged: 'PRs المدمجة',
+    thIssuesClosed: 'المشكلات المغلقة',
+    thAssessment: 'التقييم',
+    filterLabel: 'الفلتر',
+    assessmentImproved: 'تحسن',
+    assessmentStable: 'مستقر',
+    assessmentReview: 'يحتاج مراجعة',
+    assessmentInactive: 'بلا نشاط',
   },
 };
 
 // ═══════════════════════════════════════════════════════════════════
 //  APP STATE
 // ═══════════════════════════════════════════════════════════════════
+function emptyPeriodData() {
+  return {
+    commits: [],
+    commitsByRepo: {},
+    additions: 0,
+    deletions: 0,
+    filesChanged: 0,
+    weeklyStats: {},
+    prs: [],
+    issues: [],
+    languages: {},
+  };
+}
+
 const app = {
   token: '',
   username: '',
-  author: '',
+  developerFilterRaw: '',
+  developerFilters: [],
   lang: 'en',
   repos: [],
   selectedRepos: [],
   periodA: { start: '', end: '' },
   periodB: { start: '', end: '' },
   data: {
-    a: { commits: [], commitsByRepo: {}, additions: 0, deletions: 0, filesChanged: 0, weeklyStats: {}, prs: [], issues: [], languages: {} },
-    b: { commits: [], commitsByRepo: {}, additions: 0, deletions: 0, filesChanged: 0, weeklyStats: {}, prs: [], issues: [], languages: {} },
+    a: emptyPeriodData(),
+    b: emptyPeriodData(),
   },
+  developers: [],
   charts: {},
   skippedRepos: 0,
   commitStatsLimit: 0, // 0 = unlimited
@@ -1179,6 +1262,8 @@ function applyLang(lang) {
   document.getElementById('inp-token').placeholder = 'ghp_xxxxxxxxxxxxxxxxxxxx';
   const repoSearch = document.getElementById('repo-search');
   if (repoSearch) repoSearch.placeholder = TRANSLATIONS[lang].searchRepos || 'Search…';
+  const developerFilter = document.getElementById('inp-author');
+  if (developerFilter) developerFilter.placeholder = lang === 'ar' ? 'octocat, hubot' : 'octocat, hubot';
 }
 
 function toggleLang() {
@@ -1205,9 +1290,10 @@ function resetApp() {
   Object.values(app.charts).forEach(c => c?.destroy?.());
   app.charts = {};
   app.data = {
-    a: { commits: [], commitsByRepo: {}, additions: 0, deletions: 0, filesChanged: 0, weeklyStats: {}, prs: [], issues: [], languages: {} },
-    b: { commits: [], commitsByRepo: {}, additions: 0, deletions: 0, filesChanged: 0, weeklyStats: {}, prs: [], issues: [], languages: {} },
+    a: emptyPeriodData(),
+    b: emptyPeriodData(),
   };
+  app.developers = [];
   showScreen('setup');
 }
 
@@ -1278,6 +1364,45 @@ function updateRateLimit(res) {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+function normalizeDeveloperFilters(raw) {
+  return raw
+    .split(',')
+    .map(v => v.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function matchesDeveloperFilter(candidates = []) {
+  if (!app.developerFilters.length) return true;
+  const normalized = candidates
+    .filter(Boolean)
+    .map(v => String(v).trim().toLowerCase());
+  return app.developerFilters.some(filter => normalized.some(value => value.includes(filter)));
+}
+
+function getCommitActor(commit) {
+  const login = commit.author?.login || '';
+  const name = commit.commit?.author?.name || '';
+  const email = commit.commit?.author?.email || '';
+  const label = login || name || email || 'Unknown';
+  const key = (login || email || name || 'unknown').toLowerCase();
+  return { key, label, login, name, email };
+}
+
+function getItemActor(item) {
+  const login = item.user?.login || '';
+  const label = login || 'Unknown';
+  return { key: label.toLowerCase(), label, login };
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ═══════════════════════════════════════════════════════════════════
 //  STEP 1: SETUP
 // ═══════════════════════════════════════════════════════════════════
@@ -1318,8 +1443,8 @@ async function handleSetup() {
     document.getElementById('sidebar-avatar').src = user.avatar_url || '';
     document.getElementById('sidebar-username').textContent = username;
 
-    // Pre-fill author filter
-    document.getElementById('inp-author').value = username;
+    // Default to all developers unless a filter is explicitly provided
+    document.getElementById('inp-author').value = '';
 
     buildRepoList();
     showScreen('config');
@@ -1393,8 +1518,9 @@ async function startAnalysis() {
   if (!aStart || !aEnd || !bStart || !bEnd) { errEl.textContent = t('errFillDates'); errEl.classList.remove('hidden'); return; }
   if (aStart >= aEnd || bStart >= bEnd) { errEl.textContent = t('errDateOrder'); errEl.classList.remove('hidden'); return; }
 
-  const author = document.getElementById('inp-author').value.trim() || app.username;
-  app.author = author;
+  const developerFilterRaw = document.getElementById('inp-author').value.trim();
+  app.developerFilterRaw = developerFilterRaw;
+  app.developerFilters = normalizeDeveloperFilters(developerFilterRaw);
   app.commitStatsLimit = parseInt(document.getElementById('inp-stats-limit').value, 10) || 0;
   app.selectedRepos = selected;
   app.periodA = { start: aStart, end: aEnd };
@@ -1430,8 +1556,9 @@ function setProgress(pct, label, repo = '') {
 
 async function fetchAllData() {
   // Reset
-  app.data.a = { commits: [], commitsByRepo: {}, additions: 0, deletions: 0, filesChanged: 0, weeklyStats: {}, prs: [], issues: [], languages: {} };
-  app.data.b = { commits: [], commitsByRepo: {}, additions: 0, deletions: 0, filesChanged: 0, weeklyStats: {}, prs: [], issues: [], languages: {} };
+  app.data.a = emptyPeriodData();
+  app.data.b = emptyPeriodData();
+  app.developers = [];
 
   const repos = app.selectedRepos;
   for (let i = 0; i < repos.length; i++) {
@@ -1456,6 +1583,7 @@ async function fetchAllData() {
   // Phase 2: fetch per-commit stats for exact additions/deletions/files
   setProgress(95, t('loadingCommitStats'));
   await fetchCommitStats();
+  app.developers = buildDeveloperReport();
   setProgress(100, t('fetching'));
 }
 
@@ -1463,13 +1591,17 @@ async function fetchCommits(owner, repo, period) {
   const p = app[`period${period.toUpperCase()}`];
   const since = new Date(p.start).toISOString();
   const until = new Date(p.end + 'T23:59:59').toISOString();
-  const commits = await ghPaginate(`/repos/${owner}/${repo}/commits`, {
-    since, until, author: app.author,
-  });
+  const commits = await ghPaginate(`/repos/${owner}/${repo}/commits`, { since, until });
   if (!commits) return;
-  app.data[period].commits.push(...commits);
+  const normalized = commits
+    .map(commit => {
+      const actor = getCommitActor(commit);
+      return { ...commit, _repo: `${owner}/${repo}`, _actorKey: actor.key, _actorLabel: actor.label };
+    })
+    .filter(commit => matchesDeveloperFilter([commit._actorLabel, commit._actorKey, commit.author?.login, commit.commit?.author?.email]));
+  app.data[period].commits.push(...normalized);
   app.data[period].commitsByRepo[`${owner}/${repo}`] =
-    (app.data[period].commitsByRepo[`${owner}/${repo}`] || 0) + commits.length;
+    (app.data[period].commitsByRepo[`${owner}/${repo}`] || 0) + normalized.length;
 }
 
 // Batched per-commit detail fetcher (max 10 concurrent to protect rate limit)
@@ -1498,15 +1630,15 @@ async function fetchCommitStats() {
     const batch = allCommits.slice(i, i + CONCURRENCY);
     await Promise.all(batch.map(async (c) => {
       try {
-        // Extract owner/repo from the commit's url: .../repos/{owner}/{repo}/commits/{sha}
-        const urlParts = c.url.match(/repos\/([^/]+)\/([^/]+)\/commits/);
-        if (!urlParts) return;
-        const detail = await ghJson(`/repos/${urlParts[1]}/${urlParts[2]}/commits/${c.sha}`);
+        const repoRef = c._repo || '';
+        if (!repoRef) return;
+        const detail = await ghJson(`/repos/${repoRef}/commits/${c.sha}`);
         if (!detail || !detail.stats) return;
         const period = c._period;
         const add = detail.stats.additions || 0;
         const del = detail.stats.deletions || 0;
         const files = (detail.files || []).length;
+        c._stats = { add, del, files };
         app.data[period].additions  += add;
         app.data[period].deletions  += del;
         app.data[period].filesChanged += files;
@@ -1550,7 +1682,13 @@ async function fetchPRs(owner, repo, period) {
     const created = new Date(pr.created_at);
     return created >= start && created <= end;
   });
-  app.data[period].prs.push(...filtered.map(pr => ({ ...pr, _repo: `${owner}/${repo}` })));
+  const normalized = filtered
+    .map(pr => {
+      const actor = getItemActor(pr);
+      return { ...pr, _repo: `${owner}/${repo}`, _actorKey: actor.key, _actorLabel: actor.label };
+    })
+    .filter(pr => matchesDeveloperFilter([pr._actorLabel, pr._actorKey, pr.user?.login]));
+  app.data[period].prs.push(...normalized);
 }
 
 async function fetchIssues(owner, repo, period) {
@@ -1564,7 +1702,13 @@ async function fetchIssues(owner, repo, period) {
     const created = new Date(issue.created_at);
     return created >= start && created <= end;
   });
-  app.data[period].issues.push(...filtered.map(i => ({ ...i, _repo: `${owner}/${repo}` })));
+  const normalized = filtered
+    .map(issue => {
+      const actor = getItemActor(issue);
+      return { ...issue, _repo: `${owner}/${repo}`, _actorKey: actor.key, _actorLabel: actor.label };
+    })
+    .filter(issue => matchesDeveloperFilter([issue._actorLabel, issue._actorKey, issue.user?.login]));
+  app.data[period].issues.push(...normalized);
 }
 
 async function fetchLanguages(owner, repo) {
@@ -1606,6 +1750,159 @@ function normalizeScore(a, b) {
   return { scoreA: score(normA), scoreB: score(normB), normA, normB };
 }
 
+function buildDeveloperReport() {
+  const developers = new Map();
+  const periods = ['a', 'b'];
+
+  const ensureDeveloper = (key, label) => {
+    if (!developers.has(key)) {
+      developers.set(key, {
+        key,
+        label,
+        a: createDeveloperPeriodStats(),
+        b: createDeveloperPeriodStats(),
+      });
+    }
+    const dev = developers.get(key);
+    if ((!dev.label || dev.label === 'Unknown') && label) dev.label = label;
+    return dev;
+  };
+
+  periods.forEach(period => {
+    app.data[period].commits.forEach(commit => {
+      const key = commit._actorKey || 'unknown';
+      const label = commit._actorLabel || 'Unknown';
+      const dev = ensureDeveloper(key, label);
+      const stats = dev[period];
+      stats.commits++;
+      stats.repos.add(commit._repo || '');
+      stats.activeDays.add(commit.commit.author.date.split('T')[0]);
+      if (commit._stats) {
+        stats.additions += commit._stats.add || 0;
+        stats.deletions += commit._stats.del || 0;
+        stats.filesChanged += commit._stats.files || 0;
+      }
+    });
+
+    app.data[period].prs.forEach(pr => {
+      const key = pr._actorKey || 'unknown';
+      const label = pr._actorLabel || 'Unknown';
+      const dev = ensureDeveloper(key, label);
+      const stats = dev[period];
+      stats.prsOpened++;
+      stats.repos.add(pr._repo || '');
+      if (pr.merged_at) {
+        stats.prsMerged++;
+        stats.mergeHours.push((new Date(pr.merged_at) - new Date(pr.created_at)) / 3600000);
+      }
+    });
+
+    app.data[period].issues.forEach(issue => {
+      const key = issue._actorKey || 'unknown';
+      const label = issue._actorLabel || 'Unknown';
+      const dev = ensureDeveloper(key, label);
+      const stats = dev[period];
+      stats.issuesOpened++;
+      stats.repos.add(issue._repo || '');
+      if (issue.state === 'closed') stats.issuesClosed++;
+    });
+  });
+
+  const daysInPeriod = period => {
+    const p = app[`period${period.toUpperCase()}`];
+    return Math.max(1, Math.round((new Date(p.end) - new Date(p.start)) / 86400000));
+  };
+  const maxes = { commitFreq: 0.01, netLinesPerDay: 1, activeRatio: 0.01, prMergeRate: 1 };
+
+  developers.forEach(dev => {
+    periods.forEach(period => {
+      const stats = dev[period];
+      finalizeDeveloperPeriodStats(stats, daysInPeriod(period));
+      maxes.commitFreq = Math.max(maxes.commitFreq, stats.commitFreq);
+      maxes.netLinesPerDay = Math.max(maxes.netLinesPerDay, Math.max(0, stats.netLinesPerDay));
+      maxes.activeRatio = Math.max(maxes.activeRatio, stats.activeRatio);
+      maxes.prMergeRate = Math.max(maxes.prMergeRate, stats.prMergeRate);
+    });
+  });
+
+  return [...developers.values()]
+    .map(dev => {
+      dev.a.score = computeDeveloperScore(dev.a, maxes);
+      dev.b.score = computeDeveloperScore(dev.b, maxes);
+      dev.deltaScore = dev.b.score - dev.a.score;
+      const hasActivity = dev.a.commits + dev.a.prsOpened + dev.a.issuesOpened + dev.b.commits + dev.b.prsOpened + dev.b.issuesOpened > 0;
+      dev.assessmentKey = !hasActivity
+        ? 'assessmentInactive'
+        : dev.deltaScore >= 10
+          ? 'assessmentImproved'
+          : dev.deltaScore <= -10
+            ? 'assessmentReview'
+            : 'assessmentStable';
+      dev.assessmentClass = dev.assessmentKey === 'assessmentImproved'
+        ? 'pos'
+        : dev.assessmentKey === 'assessmentReview'
+          ? 'neg'
+          : 'neutral';
+      return dev;
+    })
+    .sort((left, right) =>
+      right.b.score - left.b.score ||
+      right.b.commits - left.b.commits ||
+      right.deltaScore - left.deltaScore ||
+      left.label.localeCompare(right.label)
+    );
+}
+
+function createDeveloperPeriodStats() {
+  return {
+    commits: 0,
+    additions: 0,
+    deletions: 0,
+    filesChanged: 0,
+    prsOpened: 0,
+    prsMerged: 0,
+    issuesOpened: 0,
+    issuesClosed: 0,
+    mergeHours: [],
+    activeDays: new Set(),
+    repos: new Set(),
+    days: 0,
+    commitFreq: 0,
+    netLinesPerDay: 0,
+    activeRatio: 0,
+    prMergeRate: 0,
+    avgMergeHours: null,
+    score: 0,
+  };
+}
+
+function finalizeDeveloperPeriodStats(stats, days) {
+  stats.days = days;
+  stats.activeDaysCount = stats.activeDays.size;
+  stats.activeReposCount = [...stats.repos].filter(Boolean).length;
+  stats.commitFreq = stats.commits / Math.max(1, days);
+  stats.netLines = stats.additions - stats.deletions;
+  stats.netLinesPerDay = stats.netLines / Math.max(1, days);
+  stats.activeRatio = (stats.activeDaysCount / Math.max(1, days)) * 100;
+  stats.prMergeRate = stats.prsOpened > 0 ? (stats.prsMerged / stats.prsOpened) * 100 : 0;
+  stats.avgMergeHours = stats.mergeHours.length
+    ? Math.round(stats.mergeHours.reduce((sum, hours) => sum + hours, 0) / stats.mergeHours.length)
+    : null;
+}
+
+function computeDeveloperScore(stats, maxes) {
+  const commitComponent = (stats.commitFreq / Math.max(maxes.commitFreq, 0.01)) * 100;
+  const netLinesComponent = (Math.max(0, stats.netLinesPerDay) / Math.max(maxes.netLinesPerDay, 1)) * 100;
+  const activityComponent = (stats.activeRatio / Math.max(maxes.activeRatio, 0.01)) * 100;
+  const prComponent = (stats.prMergeRate / Math.max(maxes.prMergeRate, 1)) * 100;
+  return Math.round(
+    commitComponent * 0.35 +
+    activityComponent * 0.25 +
+    netLinesComponent * 0.20 +
+    prComponent * 0.20
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════
 //  RENDER DASHBOARD
 // ═══════════════════════════════════════════════════════════════════
@@ -1623,6 +1920,7 @@ function renderDashboard() {
   renderChangedLinesChart();
   renderHeatmap();
   renderPRTable();
+  renderDevelopersTable();
   renderReposOverview();
   renderInsights(a, b, scoreA, scoreB);
 }
@@ -1639,9 +1937,10 @@ function renderLegends() {
       <strong>${t('periodB')}</strong> — ${app.periodB.start} → ${app.periodB.end}
       <span style="color:var(--text-muted);margin-left:4px">(${t('afterAI')})</span>
     </div>
+    ${app.developerFilterRaw ? `<span style="color:var(--text-secondary);font-size:11px">${t('filterLabel')}: ${escapeHtml(app.developerFilterRaw)}</span>` : ''}
     ${app.skippedRepos > 0 ? `<span style="color:var(--warning);font-size:11px">${t('repoSkipped', app.skippedRepos)}</span>` : ''}
   `;
-  ['overview', 'charts', 'heatmap'].forEach(id => {
+  ['overview', 'charts', 'heatmap', 'developers'].forEach(id => {
     const el = document.getElementById(`legend-${id}`);
     if (el) el.innerHTML = html;
   });
@@ -2044,6 +2343,83 @@ function renderPRTable() {
   wrap.innerHTML = html;
 }
 
+function renderDevelopersTable() {
+  const wrap = document.getElementById('developers-table-wrap');
+  if (!wrap) return;
+  if (!app.developers.length) {
+    wrap.innerHTML = `<div class="text-muted">${t('noDevelopers')}</div>`;
+    return;
+  }
+
+  const deltaCell = (a, b, invert = false) => {
+    const pct = pctChange(a, b);
+    const positive = invert ? pct < 0 : pct > 0;
+    const cls = pct === 0 ? 'neutral' : positive ? 'pos' : 'neg';
+    const sign = pct > 0 ? '+' : '';
+    return `<td class="delta-cell ${cls}">${sign}${pct}%</td>`;
+  };
+  const rawDeltaCell = (a, b) => {
+    const delta = b - a;
+    const cls = delta === 0 ? 'neutral' : delta > 0 ? 'pos' : 'neg';
+    const sign = delta > 0 ? '+' : '';
+    return `<td class="delta-cell ${cls}">${sign}${fmtNum(delta)}</td>`;
+  };
+
+  let html = `<table><thead><tr>
+    <th>${t('thDeveloper')}</th>
+    <th>${t('thScoreA')}</th>
+    <th>${t('thScoreB')}</th>
+    <th>${t('thDelta')}</th>
+    <th>${t('thCommits')} A</th>
+    <th>${t('thCommits')} B</th>
+    <th>${t('thDelta')}</th>
+    <th>${t('thNetLines')} A</th>
+    <th>${t('thNetLines')} B</th>
+    <th>${t('thDelta')}</th>
+    <th>${t('thActiveDays')} A</th>
+    <th>${t('thActiveDays')} B</th>
+    <th>${t('thActiveRepos')} A</th>
+    <th>${t('thActiveRepos')} B</th>
+    <th>${t('thPRMerged')} A</th>
+    <th>${t('thPRMerged')} B</th>
+    <th>${t('thIssuesClosed')} A</th>
+    <th>${t('thIssuesClosed')} B</th>
+    <th>${t('thAssessment')}</th>
+  </tr></thead><tbody>`;
+
+  app.developers.forEach(dev => {
+    const safeLabel = escapeHtml(dev.label);
+    const safeKey = escapeHtml(dev.key);
+    html += `<tr>
+      <td>
+        <div>${safeLabel}</div>
+        <small style="color:var(--text-muted);font-size:10px">${safeKey}</small>
+      </td>
+      <td>${dev.a.score}</td>
+      <td>${dev.b.score}</td>
+      ${deltaCell(dev.a.score, dev.b.score)}
+      <td>${dev.a.commits}</td>
+      <td>${dev.b.commits}</td>
+      ${deltaCell(dev.a.commits, dev.b.commits)}
+      <td>${fmtNum(dev.a.netLines)}</td>
+      <td>${fmtNum(dev.b.netLines)}</td>
+      ${rawDeltaCell(dev.a.netLines, dev.b.netLines)}
+      <td>${dev.a.activeDaysCount}</td>
+      <td>${dev.b.activeDaysCount}</td>
+      <td>${dev.a.activeReposCount}</td>
+      <td>${dev.b.activeReposCount}</td>
+      <td>${dev.a.prsMerged}/${dev.a.prsOpened}</td>
+      <td>${dev.b.prsMerged}/${dev.b.prsOpened}</td>
+      <td>${dev.a.issuesClosed}/${dev.a.issuesOpened}</td>
+      <td>${dev.b.issuesClosed}/${dev.b.issuesOpened}</td>
+      <td><span class="assessment-chip ${dev.assessmentClass}">${t(dev.assessmentKey)}</span></td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
 // ═══════════════════════════════════════════════════════════════════
 //  AI INSIGHTS (language-aware)
 // ═══════════════════════════════════════════════════════════════════
@@ -2178,7 +2554,7 @@ function exportJSON() {
   const payload = {
     meta: {
       username: app.username,
-      author: app.author,
+      developerFilter: app.developerFilterRaw,
       exportedAt: new Date().toISOString(),
       periodA: app.periodA,
       periodB: app.periodB,
@@ -2193,13 +2569,15 @@ function exportJSON() {
         sha: c.sha,
         date: c.commit.author.date,
         message: c.commit.message.split('\n')[0],
-        repo: Object.keys(app.data.a.commitsByRepo).find(r =>
-          app.data.a.commits.indexOf(c) !== -1) || '',
+        repo: c._repo || '',
+        developer: c._actorLabel || '',
       })),
       b: app.data.b.commits.map(c => ({
         sha: c.sha,
         date: c.commit.author.date,
         message: c.commit.message.split('\n')[0],
+        repo: c._repo || '',
+        developer: c._actorLabel || '',
       })),
     },
     weeklyStats: {
@@ -2207,6 +2585,33 @@ function exportJSON() {
       b: app.data.b.weeklyStats,
     },
     languages: app.data.b.languages,
+    developers: app.developers.map(dev => ({
+      developer: dev.label,
+      key: dev.key,
+      assessment: t(dev.assessmentKey),
+      periodA: {
+        score: dev.a.score,
+        commits: dev.a.commits,
+        netLines: dev.a.netLines,
+        activeDays: dev.a.activeDaysCount,
+        activeRepos: dev.a.activeReposCount,
+        prsOpened: dev.a.prsOpened,
+        prsMerged: dev.a.prsMerged,
+        issuesOpened: dev.a.issuesOpened,
+        issuesClosed: dev.a.issuesClosed,
+      },
+      periodB: {
+        score: dev.b.score,
+        commits: dev.b.commits,
+        netLines: dev.b.netLines,
+        activeDays: dev.b.activeDaysCount,
+        activeRepos: dev.b.activeReposCount,
+        prsOpened: dev.b.prsOpened,
+        prsMerged: dev.b.prsMerged,
+        issuesOpened: dev.b.issuesOpened,
+        issuesClosed: dev.b.issuesClosed,
+      },
+    })),
   };
   downloadFile(
     `gh-analytics-${app.username}-${new Date().toISOString().split('T')[0]}.json`,
@@ -2241,16 +2646,71 @@ function exportCSVSummary() {
   document.getElementById('export-menu').classList.add('hidden');
 }
 
+function exportCSVDevelopers() {
+  if (!app.developers.length) return;
+  const rows = [[
+    'Developer',
+    'Key',
+    'Assessment',
+    'Score A',
+    'Score B',
+    'Score Delta',
+    'Commits A',
+    'Commits B',
+    'Net Lines A',
+    'Net Lines B',
+    'Active Days A',
+    'Active Days B',
+    'Repos A',
+    'Repos B',
+    'PRs Merged A',
+    'PRs Merged B',
+    'Issues Closed A',
+    'Issues Closed B',
+  ]];
+  app.developers.forEach(dev => {
+    rows.push([
+      dev.label,
+      dev.key,
+      t(dev.assessmentKey),
+      dev.a.score,
+      dev.b.score,
+      dev.deltaScore,
+      dev.a.commits,
+      dev.b.commits,
+      dev.a.netLines,
+      dev.b.netLines,
+      dev.a.activeDaysCount,
+      dev.b.activeDaysCount,
+      dev.a.activeReposCount,
+      dev.b.activeReposCount,
+      dev.a.prsMerged,
+      dev.b.prsMerged,
+      dev.a.issuesClosed,
+      dev.b.issuesClosed,
+    ]);
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  downloadFile(
+    `gh-developers-${app.username}-${new Date().toISOString().split('T')[0]}.csv`,
+    csv,
+    'text/csv'
+  );
+  document.getElementById('export-menu').classList.add('hidden');
+}
+
 function exportCSVCommits(period) {
   const commits = app.data[period].commits;
   if (commits.length === 0) return;
-  const rows = [['SHA', 'Date', 'Message', 'Author']];
+  const rows = [['SHA', 'Date', 'Message', 'Author', 'Developer Key', 'Repository']];
   commits.forEach(c => {
     rows.push([
       c.sha.slice(0, 8),
       c.commit.author.date,
       c.commit.message.split('\n')[0].replace(/"/g, '""'),
       c.commit.author.name,
+      c._actorKey || '',
+      c._repo || '',
     ]);
   });
   const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
@@ -2455,6 +2915,7 @@ const SECTION_KEYS = {
   charts: 'charts',
   heatmap: 'heatmap',
   prs: 'prsIssues',
+  developers: 'developers',
   repos: 'repositories',
   insights: 'aiInsights',
 };
