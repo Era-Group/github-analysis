@@ -1350,19 +1350,19 @@ const t = (key, ...args) => {
   if (saved) document.getElementById('inp-token').value = saved;
   if (savedUser) document.getElementById('inp-username').value = savedUser;
 
-  // Default date ranges: Period A = last month, Period B = current month
+  // Default date ranges: Period A = month before last, Period B = last month
   const now = new Date();
   const fmt = d => d.toISOString().split('T')[0];
-  // Current month: 1st → today
-  const curMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const curMonthEnd   = now;
   // Last month: 1st → last day
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonthEnd   = new Date(now.getFullYear(), now.getMonth(), 0); // day 0 = last day of prev month
-  document.getElementById('a-start').value = fmt(lastMonthStart);
-  document.getElementById('a-end').value   = fmt(lastMonthEnd);
-  document.getElementById('b-start').value = fmt(curMonthStart);
-  document.getElementById('b-end').value   = fmt(curMonthEnd);
+  // Month before last: 1st → last day
+  const prevLastMonthStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+  const prevLastMonthEnd   = new Date(now.getFullYear(), now.getMonth() - 1, 0);
+  document.getElementById('a-start').value = fmt(prevLastMonthStart);
+  document.getElementById('a-end').value   = fmt(prevLastMonthEnd);
+  document.getElementById('b-start').value = fmt(lastMonthStart);
+  document.getElementById('b-end').value   = fmt(lastMonthEnd);
   syncRatingWeightInputs();
 })();
 
