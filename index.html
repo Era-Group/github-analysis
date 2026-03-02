@@ -270,6 +270,30 @@ html[dir="rtl"] .repo-search-wrap::before { left: auto; right: 8px; }
 /* Author filter */
 .author-filter { margin-top: 20px; }
 .author-filter input { font-family: 'JetBrains Mono', monospace; }
+.smart-filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.smart-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.smart-toggle input[type="checkbox"] {
+  accent-color: var(--period-b);
+  width: 14px;
+  height: 14px;
+}
+.smart-status {
+  font-size: 11px;
+  color: var(--text-muted);
+}
 
 /* ─────────────── PROGRESS OVERLAY ─────────────── */
 #progress-overlay {
@@ -604,6 +628,7 @@ html[dir="rtl"] .export-menu button { text-align: right; flex-direction: row-rev
     <div class="repos-toolbar">
       <span id="repo-count-label" class="text-sm text-muted"></span>
       <div class="flex gap-2">
+        <button class="btn btn-secondary text-sm" onclick="selectOwnedRepos()" style="padding:5px 12px" data-i18n="selectMine">Select Mine</button>
         <button class="btn btn-secondary text-sm" onclick="toggleAllRepos(true)"  style="padding:5px 12px" data-i18n="selectAll">Select All</button>
         <button class="btn btn-secondary text-sm" onclick="toggleAllRepos(false)" style="padding:5px 12px" data-i18n="deselectAll">Deselect All</button>
       </div>
@@ -617,6 +642,13 @@ html[dir="rtl"] .export-menu button { text-align: right; flex-direction: row-rev
     <div class="author-filter form-group">
       <label for="inp-author"><span data-i18n="authorFilter">Developer Filter</span> <span data-i18n="authorFilterHint">(optional: username, name, or email)</span></label>
       <input type="text" id="inp-author" placeholder="octocat, hubot" autocomplete="off" />
+      <div class="smart-filter-row">
+        <label class="smart-toggle" for="org-members-only">
+          <input type="checkbox" id="org-members-only" onchange="handleOrgMembersToggle(this.checked)" />
+          <span data-i18n="orgMembersOnly">Only organization members</span>
+        </label>
+        <span class="smart-status" id="org-members-status" data-i18n="orgMembersStatusUnavailable">Organization members filter unavailable</span>
+      </div>
     </div>
 
     <!-- Commit stats limit -->
@@ -866,10 +898,14 @@ const TRANSLATIONS = {
     configTitle: 'Configure Analysis',
     configSubtitle: 'Select repositories, set date ranges, and optionally filter developers.',
     repositories: 'Repositories',
+    selectMine: 'Select Mine',
     selectAll: 'Select All',
     deselectAll: 'Deselect All',
     authorFilter: 'Developer Filter',
     authorFilterHint: '(optional: username, name, or email)',
+    orgMembersOnly: 'Only organization members',
+    orgMembersStatusReady: (n, org) => `${n} org members loaded from ${org}`,
+    orgMembersStatusUnavailable: 'Organization members filter unavailable',
     commitStatsLimit: 'Commit Stats Limit',
     commitStatsLimitHint: '(per-commit additions/deletions fetch)',
     unlimited: 'Unlimited',
@@ -988,6 +1024,7 @@ const TRANSLATIONS = {
     thIssuesClosed: 'Issues Closed',
     thAssessment: 'Assessment',
     filterLabel: 'Filter',
+    orgScopeLabel: 'Org members only',
     assessmentImproved: 'Improved',
     assessmentStable: 'Stable',
     assessmentReview: 'Needs Review',
@@ -1006,10 +1043,14 @@ const TRANSLATIONS = {
     configTitle: 'إعداد التحليل',
     configSubtitle: 'اختر المستودعات، حدد النطاقات الزمنية، ويمكنك تصفية المطورين اختيارياً.',
     repositories: 'المستودعات',
+    selectMine: 'مستودعاتي فقط',
     selectAll: 'تحديد الكل',
     deselectAll: 'إلغاء الكل',
     authorFilter: 'فلتر المطور',
     authorFilterHint: '(اختياري: اسم مستخدم أو اسم أو بريد)',
+    orgMembersOnly: 'أعضاء المنظمة فقط',
+    orgMembersStatusReady: (n, org) => `تم تحميل ${n} من أعضاء المنظمة ${org}`,
+    orgMembersStatusUnavailable: 'فلتر أعضاء المنظمة غير متاح',
     commitStatsLimit: 'حد إحصاءات الـ Commits',
     commitStatsLimitHint: '(جلب الإضافات/الحذوفات لكل commit)',
     unlimited: 'بلا حد',
@@ -1125,6 +1166,7 @@ const TRANSLATIONS = {
     thIssuesClosed: 'المشكلات المغلقة',
     thAssessment: 'التقييم',
     filterLabel: 'الفلتر',
+    orgScopeLabel: 'أعضاء المنظمة فقط',
     assessmentImproved: 'تحسن',
     assessmentStable: 'مستقر',
     assessmentReview: 'يحتاج مراجعة',
@@ -1152,6 +1194,10 @@ function emptyPeriodData() {
 const app = {
   token: '',
   username: '',
+  accountType: '',
+  orgLogin: '',
+  orgMembers: new Set(),
+  orgMembersOnly: false,
   developerFilterRaw: '',
   developerFilters: [],
   lang: 'en',
@@ -1264,6 +1310,7 @@ function applyLang(lang) {
   if (repoSearch) repoSearch.placeholder = TRANSLATIONS[lang].searchRepos || 'Search…';
   const developerFilter = document.getElementById('inp-author');
   if (developerFilter) developerFilter.placeholder = lang === 'ar' ? 'octocat, hubot' : 'octocat, hubot';
+  updateOrgMemberFilterUI();
 }
 
 function toggleLang() {
@@ -1289,11 +1336,16 @@ function goToSetup() { showScreen('setup'); }
 function resetApp() {
   Object.values(app.charts).forEach(c => c?.destroy?.());
   app.charts = {};
+  app.accountType = '';
+  app.orgLogin = '';
+  app.orgMembers = new Set();
+  app.orgMembersOnly = false;
   app.data = {
     a: emptyPeriodData(),
     b: emptyPeriodData(),
   };
   app.developers = [];
+  updateOrgMemberFilterUI();
   showScreen('setup');
 }
 
@@ -1394,6 +1446,44 @@ function getItemActor(item) {
   return { key: label.toLowerCase(), label, login };
 }
 
+function updateOrgMemberFilterUI() {
+  const checkbox = document.getElementById('org-members-only');
+  const status = document.getElementById('org-members-status');
+  if (!checkbox || !status) return;
+  const available = !!app.orgLogin && app.orgMembers.size > 0;
+  checkbox.checked = available && app.orgMembersOnly;
+  checkbox.disabled = !available;
+  status.textContent = available
+    ? t('orgMembersStatusReady', app.orgMembers.size, app.orgLogin)
+    : t('orgMembersStatusUnavailable');
+}
+
+function matchesOrgMember(login) {
+  if (!app.orgMembersOnly) return true;
+  if (!login) return false;
+  return app.orgMembers.has(String(login).toLowerCase());
+}
+
+function handleOrgMembersToggle(checked) {
+  app.orgMembersOnly = checked && !!app.orgLogin && app.orgMembers.size > 0;
+  updateOrgMemberFilterUI();
+}
+
+function selectOwnedRepos() {
+  document.querySelectorAll('#repos-list .repo-item input[type=checkbox]').forEach(cb => {
+    cb.checked = cb.dataset.ownerLogin === app.username.toLowerCase();
+  });
+}
+
+async function fetchOrgMembers(orgLogin) {
+  try {
+    const members = await ghPaginate(`/orgs/${orgLogin}/members`);
+    return new Set((members || []).map(member => String(member.login || '').toLowerCase()).filter(Boolean));
+  } catch (_) {
+    return new Set();
+  }
+}
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -1428,6 +1518,10 @@ async function handleSetup() {
     // Verify user exists
     const user = await ghJson(`/users/${username}`);
     if (!user || user.message === 'Not Found') throw new Error(t('errUserNotFound'));
+    app.accountType = user.type || '';
+    app.orgLogin = user.type === 'Organization' ? username : '';
+    app.orgMembers = app.orgLogin ? await fetchOrgMembers(app.orgLogin) : new Set();
+    app.orgMembersOnly = false;
 
     localStorage.setItem('gh_token', token);
     localStorage.setItem('gh_username', username);
@@ -1445,6 +1539,9 @@ async function handleSetup() {
 
     // Default to all developers unless a filter is explicitly provided
     document.getElementById('inp-author').value = '';
+    const orgOnly = document.getElementById('org-members-only');
+    if (orgOnly) orgOnly.checked = false;
+    updateOrgMemberFilterUI();
 
     buildRepoList();
     showScreen('config');
@@ -1473,7 +1570,7 @@ function buildRepoList() {
     item.className = 'repo-item';
     const id = `repo-cb-${i}`;
     item.innerHTML = `
-      <input type="checkbox" id="${id}" value="${repo.full_name}" checked />
+      <input type="checkbox" id="${id}" value="${repo.full_name}" data-owner-login="${(repo.owner?.login || '').toLowerCase()}" checked />
       <label for="${id}" title="${repo.full_name}">${repo.name}</label>
       <span class="owner-badge${isOwn ? '' : ' other'}">${repo.owner?.login || '?'}</span>
     `;
@@ -1521,6 +1618,7 @@ async function startAnalysis() {
   const developerFilterRaw = document.getElementById('inp-author').value.trim();
   app.developerFilterRaw = developerFilterRaw;
   app.developerFilters = normalizeDeveloperFilters(developerFilterRaw);
+  app.orgMembersOnly = !!document.getElementById('org-members-only')?.checked && !!app.orgLogin && app.orgMembers.size > 0;
   app.commitStatsLimit = parseInt(document.getElementById('inp-stats-limit').value, 10) || 0;
   app.selectedRepos = selected;
   app.periodA = { start: aStart, end: aEnd };
@@ -1596,9 +1694,10 @@ async function fetchCommits(owner, repo, period) {
   const normalized = commits
     .map(commit => {
       const actor = getCommitActor(commit);
-      return { ...commit, _repo: `${owner}/${repo}`, _actorKey: actor.key, _actorLabel: actor.label };
+      return { ...commit, _repo: `${owner}/${repo}`, _actorKey: actor.key, _actorLabel: actor.label, _actorLogin: actor.login };
     })
-    .filter(commit => matchesDeveloperFilter([commit._actorLabel, commit._actorKey, commit.author?.login, commit.commit?.author?.email]));
+    .filter(commit => matchesDeveloperFilter([commit._actorLabel, commit._actorKey, commit.author?.login, commit.commit?.author?.email]))
+    .filter(commit => matchesOrgMember(commit._actorLogin));
   app.data[period].commits.push(...normalized);
   app.data[period].commitsByRepo[`${owner}/${repo}`] =
     (app.data[period].commitsByRepo[`${owner}/${repo}`] || 0) + normalized.length;
@@ -1691,9 +1790,10 @@ async function fetchPRs(owner, repo, period) {
   const normalized = filtered
     .map(pr => {
       const actor = getItemActor(pr);
-      return { ...pr, _repo: `${owner}/${repo}`, _actorKey: actor.key, _actorLabel: actor.label };
+      return { ...pr, _repo: `${owner}/${repo}`, _actorKey: actor.key, _actorLabel: actor.label, _actorLogin: actor.login };
     })
-    .filter(pr => matchesDeveloperFilter([pr._actorLabel, pr._actorKey, pr.user?.login]));
+    .filter(pr => matchesDeveloperFilter([pr._actorLabel, pr._actorKey, pr.user?.login]))
+    .filter(pr => matchesOrgMember(pr._actorLogin));
   app.data[period].prs.push(...normalized);
 }
 
@@ -1717,12 +1817,14 @@ async function fetchIssues(owner, repo, period) {
         _repo: `${owner}/${repo}`,
         _actorKey: actor.key,
         _actorLabel: actor.label,
+        _actorLogin: actor.login,
         _openedInPeriod: openedInPeriod,
         _closedInPeriod: closedInPeriod,
       };
     })
     .filter(Boolean)
-    .filter(issue => matchesDeveloperFilter([issue._actorLabel, issue._actorKey, issue.user?.login]));
+    .filter(issue => matchesDeveloperFilter([issue._actorLabel, issue._actorKey, issue.user?.login]))
+    .filter(issue => matchesOrgMember(issue._actorLogin));
   app.data[period].issues.push(...normalized);
 }
 
@@ -1953,6 +2055,7 @@ function renderLegends() {
       <span style="color:var(--text-muted);margin-left:4px">(${t('afterAI')})</span>
     </div>
     ${app.developerFilterRaw ? `<span style="color:var(--text-secondary);font-size:11px">${t('filterLabel')}: ${escapeHtml(app.developerFilterRaw)}</span>` : ''}
+    ${app.orgMembersOnly ? `<span style="color:var(--text-secondary);font-size:11px">${t('orgScopeLabel')}${app.orgLogin ? `: ${escapeHtml(app.orgLogin)}` : ''}</span>` : ''}
     ${app.skippedRepos > 0 ? `<span style="color:var(--warning);font-size:11px">${t('repoSkipped', app.skippedRepos)}</span>` : ''}
   `;
   ['overview', 'charts', 'heatmap', 'developers'].forEach(id => {
@@ -2576,6 +2679,8 @@ function exportJSON() {
     meta: {
       username: app.username,
       developerFilter: app.developerFilterRaw,
+      orgMembersOnly: app.orgMembersOnly,
+      orgLogin: app.orgLogin || '',
       exportedAt: new Date().toISOString(),
       periodA: app.periodA,
       periodB: app.periodB,
