@@ -1616,8 +1616,14 @@ async function fetchCommitStats() {
   };
   const halfLimit = limit > 0 ? Math.ceil(limit / 2) : 0;
   const allCommits = [
-    ...sample(app.data.a.commits, halfLimit).map(c => ({ ...c, _period: 'a' })),
-    ...sample(app.data.b.commits, halfLimit).map(c => ({ ...c, _period: 'b' })),
+    ...sample(app.data.a.commits, halfLimit).map(c => {
+      c._period = 'a';
+      return c;
+    }),
+    ...sample(app.data.b.commits, halfLimit).map(c => {
+      c._period = 'b';
+      return c;
+    }),
   ];
   if (allCommits.length === 0) return;
 
@@ -1697,16 +1703,25 @@ async function fetchIssues(owner, repo, period) {
   const allIssues = await ghPaginate(`/repos/${owner}/${repo}/issues`, { state: 'all', since });
   if (!allIssues) return;
   const start = new Date(p.start), end = new Date(p.end + 'T23:59:59');
-  const filtered = allIssues.filter(issue => {
-    if (issue.pull_request) return false;
-    const created = new Date(issue.created_at);
-    return created >= start && created <= end;
-  });
-  const normalized = filtered
+  const normalized = allIssues
+    .filter(issue => !issue.pull_request)
     .map(issue => {
+      const created = new Date(issue.created_at);
+      const closed = issue.closed_at ? new Date(issue.closed_at) : null;
+      const openedInPeriod = created >= start && created <= end;
+      const closedInPeriod = !!closed && closed >= start && closed <= end;
+      if (!openedInPeriod && !closedInPeriod) return null;
       const actor = getItemActor(issue);
-      return { ...issue, _repo: `${owner}/${repo}`, _actorKey: actor.key, _actorLabel: actor.label };
+      return {
+        ...issue,
+        _repo: `${owner}/${repo}`,
+        _actorKey: actor.key,
+        _actorLabel: actor.label,
+        _openedInPeriod: openedInPeriod,
+        _closedInPeriod: closedInPeriod,
+      };
     })
+    .filter(Boolean)
     .filter(issue => matchesDeveloperFilter([issue._actorLabel, issue._actorKey, issue.user?.login]));
   app.data[period].issues.push(...normalized);
 }
@@ -1802,9 +1817,9 @@ function buildDeveloperReport() {
       const label = issue._actorLabel || 'Unknown';
       const dev = ensureDeveloper(key, label);
       const stats = dev[period];
-      stats.issuesOpened++;
+      if (issue._openedInPeriod) stats.issuesOpened++;
       stats.repos.add(issue._repo || '');
-      if (issue.state === 'closed') stats.issuesClosed++;
+      if (issue._closedInPeriod) stats.issuesClosed++;
     });
   });
 
@@ -2300,7 +2315,13 @@ function renderPRTable() {
     const merged = prs.filter(p => p.merged_at);
     const times = merged.map(p => (new Date(p.merged_at) - new Date(p.created_at)) / 3600000);
     const avgMerge = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : null;
-    return { opened: prs.length, merged: merged.length, avgMerge, iOpened: issues.length, iClosed: issues.filter(i => i.state === 'closed').length };
+    return {
+      opened: prs.length,
+      merged: merged.length,
+      avgMerge,
+      iOpened: issues.filter(i => i._openedInPeriod).length,
+      iClosed: issues.filter(i => i._closedInPeriod).length,
+    };
   };
   const fmtH = h => h === null ? '—' : h < 24 ? `${h}h` : `${Math.round(h/24)}d`;
   const dCell = (av, bv) => {
@@ -2787,7 +2808,10 @@ function renderReposOverview() {
   };
   const repoIssues = (repo, period) => {
     const issues = app.data[period].issues.filter(i => i._repo === repo);
-    return { opened: issues.length, closed: issues.filter(i => i.state === 'closed').length };
+    return {
+      opened: issues.filter(i => i._openedInPeriod).length,
+      closed: issues.filter(i => i._closedInPeriod).length,
+    };
   };
 
   grid.innerHTML = app.selectedRepos.map(repo => {
@@ -2843,6 +2867,10 @@ function openRepoModal(repo) {
   const mergedA = pra.filter(p => p.merged_at), mergedB = prb.filter(p => p.merged_at);
   const avgMergeA = calcAvgMergeTimeForPRs(mergedA);
   const avgMergeB = calcAvgMergeTimeForPRs(mergedB);
+  const issuesOpenedA = ia.filter(i => i._openedInPeriod).length;
+  const issuesOpenedB = ib.filter(i => i._openedInPeriod).length;
+  const issuesClosedA = ia.filter(i => i._closedInPeriod).length;
+  const issuesClosedB = ib.filter(i => i._closedInPeriod).length;
 
   const statBox = (label, va, vb) => `
     <div class="repo-stat-box">
@@ -2863,8 +2891,8 @@ function openRepoModal(repo) {
     ${statBox('PRs Opened', pra.length, prb.length)}
     ${statBox('PRs Merged', mergedA.length, mergedB.length)}
     ${statBox('Avg Merge Time', fmtHrs(avgMergeA), fmtHrs(avgMergeB))}
-    ${statBox('Issues Opened', ia.length, ib.length)}
-    ${statBox('Issues Closed', ia.filter(i=>i.state==='closed').length, ib.filter(i=>i.state==='closed').length)}
+    ${statBox('Issues Opened', issuesOpenedA, issuesOpenedB)}
+    ${statBox('Issues Closed', issuesClosedA, issuesClosedB)}
   </div>`;
 
   // Recent commits from period B that match this repo (by URL pattern)
