@@ -472,6 +472,22 @@ td:first-child { font-family: system-ui, sans-serif; color: var(--text-primary);
 .assessment-chip.pos { color: var(--period-b); border-color: rgba(63,185,80,.45); background: rgba(63,185,80,.08); }
 .assessment-chip.neg { color: var(--danger); border-color: rgba(248,81,73,.35); background: rgba(248,81,73,.08); }
 .assessment-chip.neutral { color: var(--text-secondary); }
+.period-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  border-radius: 999px;
+  padding: 2px 7px;
+  margin-right: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: #fff;
+}
+.period-badge.a { background: var(--period-a); }
+.period-badge.b { background: var(--period-b); }
+html[dir="rtl"] .period-badge { margin-right: 0; margin-left: 8px; }
 
 /* AI Insights */
 .insights-panel { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
@@ -900,7 +916,7 @@ html[dir="rtl"] .export-menu button { text-align: right; flex-direction: row-rev
             <button class="btn btn-secondary text-sm w-full" style="padding:8px 12px" onclick="resetRatingWeights()" data-i18n="resetWeights">Reset Weights</button>
           </div>
         </div>
-        <div class="weight-hint" id="rating-weights-hint" data-i18n="weightsHint">Weights are normalized automatically. Default: 50/20/20/10.</div>
+        <div class="weight-hint" id="rating-weights-hint" data-i18n="weightsHint">Weights are normalized automatically. Default: 70/10/25/5.</div>
         <div class="chart-title" data-i18n="developerRatings">Developer Ratings</div>
         <div class="chart-subtitle" data-i18n="developerRatingsSubtitle">Top 12 in Period B with configurable rating weights.</div>
         <div class="chart-wrap"><canvas id="chart-developer-ratings" style="max-height:320px"></canvas></div>
@@ -1004,7 +1020,7 @@ const TRANSLATIONS = {
     activeDaysWeight: 'Active Days %',
     prsWeight: 'PRs %',
     resetWeights: 'Reset Weights',
-    weightsHint: 'Weights are normalized automatically. Default: 50/20/20/10.',
+    weightsHint: 'Weights are normalized automatically. Default: 70/10/25/5.',
     weightsCurrent: (l, c, a, p) => `Current weights: lines ${l}%, commits ${c}%, active days ${a}%, PRs ${p}%`,
     periodA: 'Period A',
     periodB: 'Period B',
@@ -1161,7 +1177,7 @@ const TRANSLATIONS = {
     activeDaysWeight: 'الأيام النشطة %',
     prsWeight: 'PRs %',
     resetWeights: 'إعادة الأوزان',
-    weightsHint: 'يتم تطبيع الأوزان تلقائياً. الافتراضي: 50/20/20/10.',
+    weightsHint: 'يتم تطبيع الأوزان تلقائياً. الافتراضي: 70/10/25/5.',
     weightsCurrent: (l, c, a, p) => `الأوزان الحالية: الأسطر ${l}%، commits ${c}%، الأيام النشطة ${a}%، PRs ${p}%`,
     periodA: 'الفترة A',
     periodB: 'الفترة B',
@@ -1279,7 +1295,7 @@ const app = {
   orgLogin: '',
   orgMembers: new Set(),
   orgMembersOnly: false,
-  ratingWeights: { lines: 50, commits: 20, activeDays: 20, prs: 10 },
+  ratingWeights: { lines: 70, commits: 10, activeDays: 25, prs: 5 },
   developerFilterRaw: '',
   developerFilters: [],
   lang: 'en',
@@ -1314,10 +1330,10 @@ const t = (key, ...args) => {
     const savedWeights = JSON.parse(localStorage.getItem('gh_dev_rating_weights') || 'null');
     if (savedWeights && typeof savedWeights === 'object') {
       app.ratingWeights = {
-        lines: Number(savedWeights.lines) || 50,
-        commits: Number(savedWeights.commits) || 20,
-        activeDays: Number(savedWeights.activeDays) || 20,
-        prs: Number(savedWeights.prs) || 10,
+        lines: Number(savedWeights.lines) || 70,
+        commits: Number(savedWeights.commits) || 10,
+        activeDays: Number(savedWeights.activeDays) || 25,
+        prs: Number(savedWeights.prs) || 5,
       };
     }
   } catch (_) {}
@@ -1650,10 +1666,10 @@ function updateRatingWeightsFromUI() {
     return el ? Math.max(0, Number(el.value) || 0) : fallback;
   };
   app.ratingWeights = {
-    lines: read('weight-lines', 50),
-    commits: read('weight-commits', 20),
-    activeDays: read('weight-active-days', 20),
-    prs: read('weight-prs', 10),
+    lines: read('weight-lines', 70),
+    commits: read('weight-commits', 10),
+    activeDays: read('weight-active-days', 25),
+    prs: read('weight-prs', 5),
   };
   saveRatingWeights();
   syncRatingWeightInputs();
@@ -1665,7 +1681,7 @@ function updateRatingWeightsFromUI() {
 }
 
 function resetRatingWeights() {
-  app.ratingWeights = { lines: 50, commits: 20, activeDays: 20, prs: 10 };
+  app.ratingWeights = { lines: 70, commits: 10, activeDays: 25, prs: 5 };
   saveRatingWeights();
   syncRatingWeightInputs();
   if (app.developers.length) {
@@ -2772,74 +2788,48 @@ function renderDevelopersTable() {
     return;
   }
 
-  const deltaCell = (a, b, invert = false) => {
-    const pct = pctChange(a, b);
-    const positive = invert ? pct < 0 : pct > 0;
-    const cls = pct === 0 ? 'neutral' : positive ? 'pos' : 'neg';
-    const sign = pct > 0 ? '+' : '';
-    return `<td class="delta-cell ${cls}">${sign}${pct}%</td>`;
-  };
-  const ratingDeltaCell = (a, b) => {
-    const delta = round1(b - a);
-    const cls = delta === 0 ? 'neutral' : delta > 0 ? 'pos' : 'neg';
-    const sign = delta > 0 ? '+' : '';
-    return `<td class="delta-cell ${cls}">${sign}${delta.toFixed(1)}</td>`;
-  };
-  const rawDeltaCell = (a, b) => {
-    const delta = b - a;
-    const cls = delta === 0 ? 'neutral' : delta > 0 ? 'pos' : 'neg';
-    const sign = delta > 0 ? '+' : '';
-    return `<td class="delta-cell ${cls}">${sign}${fmtNum(delta)}</td>`;
-  };
-
   let html = `<table><thead><tr>
     <th>${t('thDeveloper')}</th>
     <th>${t('thScoreA')}</th>
-    <th>${t('thScoreB')}</th>
-    <th>${t('thDelta')}</th>
-    <th>${t('thCommits')} A</th>
-    <th>${t('thCommits')} B</th>
-    <th>${t('thDelta')}</th>
-    <th>${t('thNetLines')} A</th>
-    <th>${t('thNetLines')} B</th>
-    <th>${t('thDelta')}</th>
-    <th>${t('thActiveDays')} A</th>
-    <th>${t('thActiveDays')} B</th>
-    <th>${t('thActiveRepos')} A</th>
-    <th>${t('thActiveRepos')} B</th>
-    <th>${t('thPRMerged')} A</th>
-    <th>${t('thPRMerged')} B</th>
-    <th>${t('thIssuesClosed')} A</th>
-    <th>${t('thIssuesClosed')} B</th>
+    <th>${t('thCommits')}</th>
+    <th>${t('thNetLines')}</th>
+    <th>${t('thActiveDays')}</th>
+    <th>${t('thActiveRepos')}</th>
+    <th>${t('thPRMerged')}</th>
+    <th>${t('thIssuesClosed')}</th>
     <th>${t('thAssessment')}</th>
   </tr></thead><tbody>`;
 
   app.developers.forEach(dev => {
     const safeLabel = escapeHtml(dev.label);
     const safeKey = escapeHtml(dev.key);
+    const deltaClass = dev.deltaRating === 0 ? 'neutral' : dev.deltaRating > 0 ? 'pos' : 'neg';
+    const deltaSign = dev.deltaRating > 0 ? '+' : '';
     html += `<tr>
-      <td>
+      <td rowspan="2">
         <div>${safeLabel}</div>
         <small style="color:var(--text-muted);font-size:10px">${safeKey}</small>
       </td>
-      <td>${dev.a.rating.toFixed(1)}</td>
-      <td>${dev.b.rating.toFixed(1)}</td>
-      ${ratingDeltaCell(dev.a.rating, dev.b.rating)}
+      <td><span class="period-badge a">A</span>${dev.a.rating.toFixed(1)}</td>
       <td>${dev.a.commits}</td>
-      <td>${dev.b.commits}</td>
-      ${deltaCell(dev.a.commits, dev.b.commits)}
       <td>${fmtNum(dev.a.netLines)}</td>
-      <td>${fmtNum(dev.b.netLines)}</td>
-      ${rawDeltaCell(dev.a.netLines, dev.b.netLines)}
       <td>${dev.a.activeDaysCount}</td>
-      <td>${dev.b.activeDaysCount}</td>
       <td>${dev.a.activeReposCount}</td>
-      <td>${dev.b.activeReposCount}</td>
       <td>${dev.a.prsMerged}/${dev.a.prsOpened}</td>
-      <td>${dev.b.prsMerged}/${dev.b.prsOpened}</td>
       <td>${dev.a.issuesClosed}/${dev.a.issuesOpened}</td>
+      <td rowspan="2">
+        <span class="assessment-chip ${dev.assessmentClass}">${t(dev.assessmentKey)}</span>
+        <div class="delta-cell ${deltaClass}" style="margin-top:8px">${deltaSign}${dev.deltaRating.toFixed(1)}</div>
+      </td>
+    </tr>
+    <tr>
+      <td><span class="period-badge b">B</span>${dev.b.rating.toFixed(1)}</td>
+      <td>${dev.b.commits}</td>
+      <td>${fmtNum(dev.b.netLines)}</td>
+      <td>${dev.b.activeDaysCount}</td>
+      <td>${dev.b.activeReposCount}</td>
+      <td>${dev.b.prsMerged}/${dev.b.prsOpened}</td>
       <td>${dev.b.issuesClosed}/${dev.b.issuesOpened}</td>
-      <td><span class="assessment-chip ${dev.assessmentClass}">${t(dev.assessmentKey)}</span></td>
     </tr>`;
   });
 
