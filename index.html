@@ -1352,7 +1352,12 @@ const t = (key, ...args) => {
 
   // Default date ranges: Period A = month before last, Period B = last month
   const now = new Date();
-  const fmt = d => d.toISOString().split('T')[0];
+  const fmt = d => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
   // Last month: 1st → last day
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonthEnd   = new Date(now.getFullYear(), now.getMonth(), 0); // day 0 = last day of prev month
