@@ -487,6 +487,9 @@ td:first-child { font-family: system-ui, sans-serif; color: var(--text-primary);
 }
 .period-badge.a { background: var(--period-a); }
 .period-badge.b { background: var(--period-b); }
+.metric-higher { color: var(--period-b); font-weight: 700; }
+.metric-lower { color: var(--danger); font-weight: 700; }
+.metric-same { color: var(--text-primary); font-weight: 700; }
 html[dir="rtl"] .period-badge { margin-right: 0; margin-left: 8px; }
 
 /* AI Insights */
@@ -2810,6 +2813,7 @@ function renderDevelopersTable() {
     const safeKey = escapeHtml(dev.key);
     const deltaClass = dev.deltaRating === 0 ? 'neutral' : dev.deltaRating > 0 ? 'pos' : 'neg';
     const deltaSign = dev.deltaRating > 0 ? '+' : '';
+    const metricClass = (a, b) => b > a ? 'metric-higher' : b < a ? 'metric-lower' : 'metric-same';
     html += `<tr>
       <td rowspan="2">
         <div>${safeLabel}</div>
@@ -2828,13 +2832,13 @@ function renderDevelopersTable() {
       </td>
     </tr>
     <tr>
-      <td><span class="period-badge b">B</span>${dev.b.rating.toFixed(1)}</td>
-      <td>${dev.b.commits}</td>
-      <td>${fmtNum(dev.b.netLines)}</td>
-      <td>${dev.b.activeDaysCount}</td>
-      <td>${dev.b.activeReposCount}</td>
-      <td>${dev.b.prsMerged}/${dev.b.prsOpened}</td>
-      <td>${dev.b.issuesClosed}/${dev.b.issuesOpened}</td>
+      <td><span class="period-badge b">B</span><span class="${metricClass(dev.a.rating, dev.b.rating)}">${dev.b.rating.toFixed(1)}</span></td>
+      <td><span class="${metricClass(dev.a.commits, dev.b.commits)}">${dev.b.commits}</span></td>
+      <td><span class="${metricClass(dev.a.netLines, dev.b.netLines)}">${fmtNum(dev.b.netLines)}</span></td>
+      <td><span class="${metricClass(dev.a.activeDaysCount, dev.b.activeDaysCount)}">${dev.b.activeDaysCount}</span></td>
+      <td><span class="${metricClass(dev.a.activeReposCount, dev.b.activeReposCount)}">${dev.b.activeReposCount}</span></td>
+      <td><span class="${metricClass(dev.a.prsMerged, dev.b.prsMerged)}">${dev.b.prsMerged}/${dev.b.prsOpened}</span></td>
+      <td><span class="${metricClass(dev.a.issuesClosed, dev.b.issuesClosed)}">${dev.b.issuesClosed}/${dev.b.issuesOpened}</span></td>
     </tr>`;
   });
 
