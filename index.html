@@ -294,6 +294,34 @@ html[dir="rtl"] .repo-search-wrap::before { left: auto; right: 8px; }
   font-size: 11px;
   color: var(--text-muted);
 }
+.weights-panel {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(110px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.weight-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.weight-field label {
+  font-size: 11px;
+  margin-bottom: 0;
+}
+.weight-field input {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.weight-actions {
+  display: flex;
+  align-items: flex-end;
+}
+.weight-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
 
 /* ─────────────── PROGRESS OVERLAY ─────────────── */
 #progress-overlay {
@@ -851,8 +879,30 @@ html[dir="rtl"] .export-menu button { text-align: right; flex-direction: row-rev
     <div class="content-section" id="section-developers">
       <div class="period-legend" id="legend-developers"></div>
       <div class="chart-card">
+        <div class="weights-panel">
+          <div class="weight-field">
+            <label for="weight-lines" data-i18n="linesWeight">Lines %</label>
+            <input type="number" id="weight-lines" min="0" step="1" onchange="updateRatingWeightsFromUI()" />
+          </div>
+          <div class="weight-field">
+            <label for="weight-commits" data-i18n="commitsWeight">Commits %</label>
+            <input type="number" id="weight-commits" min="0" step="1" onchange="updateRatingWeightsFromUI()" />
+          </div>
+          <div class="weight-field">
+            <label for="weight-active-days" data-i18n="activeDaysWeight">Active Days %</label>
+            <input type="number" id="weight-active-days" min="0" step="1" onchange="updateRatingWeightsFromUI()" />
+          </div>
+          <div class="weight-field">
+            <label for="weight-prs" data-i18n="prsWeight">PRs %</label>
+            <input type="number" id="weight-prs" min="0" step="1" onchange="updateRatingWeightsFromUI()" />
+          </div>
+          <div class="weight-actions">
+            <button class="btn btn-secondary text-sm w-full" style="padding:8px 12px" onclick="resetRatingWeights()" data-i18n="resetWeights">Reset Weights</button>
+          </div>
+        </div>
+        <div class="weight-hint" id="rating-weights-hint" data-i18n="weightsHint">Weights are normalized automatically. Default: 50/20/20/10.</div>
         <div class="chart-title" data-i18n="developerRatings">Developer Ratings</div>
-        <div class="chart-subtitle" data-i18n="developerRatingsSubtitle">Rating out of 10 = 50% lines + 20% commits + 20% active days + 10% PRs</div>
+        <div class="chart-subtitle" data-i18n="developerRatingsSubtitle">Top 12 in Period B with configurable rating weights.</div>
         <div class="chart-wrap"><canvas id="chart-developer-ratings" style="max-height:320px"></canvas></div>
       </div>
       <div class="chart-card">
@@ -948,7 +998,14 @@ const TRANSLATIONS = {
     developersPerformance: 'Developers Performance',
     developersSubtitle: 'One row per developer with score, activity, code, PRs, and collaboration trend',
     developerRatings: 'Developer Ratings',
-    developerRatingsSubtitle: 'Top 12 in Period B. Rating out of 10 = 50% lines + 20% commits + 20% active days + 10% PRs',
+    developerRatingsSubtitle: 'Top 12 in Period B with configurable rating weights.',
+    linesWeight: 'Lines %',
+    commitsWeight: 'Commits %',
+    activeDaysWeight: 'Active Days %',
+    prsWeight: 'PRs %',
+    resetWeights: 'Reset Weights',
+    weightsHint: 'Weights are normalized automatically. Default: 50/20/20/10.',
+    weightsCurrent: (l, c, a, p) => `Current weights: lines ${l}%, commits ${c}%, active days ${a}%, PRs ${p}%`,
     periodA: 'Period A',
     periodB: 'Period B',
     beforeAI: 'Before AI',
@@ -1098,7 +1155,14 @@ const TRANSLATIONS = {
     developersPerformance: 'أداء المطورين',
     developersSubtitle: 'سطر لكل مطور مع الدرجة والنشاط والكود والـ PRs واتجاه الأداء',
     developerRatings: 'تقييم المطورين',
-    developerRatingsSubtitle: 'أفضل 12 في الفترة B. التقييم من 10 = 50% للأسطر + 20% للـ commits + 20% للأيام النشطة + 10% للـ PRs',
+    developerRatingsSubtitle: 'أفضل 12 في الفترة B مع أوزان تقييم قابلة للتعديل.',
+    linesWeight: 'الأسطر %',
+    commitsWeight: 'Commits %',
+    activeDaysWeight: 'الأيام النشطة %',
+    prsWeight: 'PRs %',
+    resetWeights: 'إعادة الأوزان',
+    weightsHint: 'يتم تطبيع الأوزان تلقائياً. الافتراضي: 50/20/20/10.',
+    weightsCurrent: (l, c, a, p) => `الأوزان الحالية: الأسطر ${l}%، commits ${c}%، الأيام النشطة ${a}%، PRs ${p}%`,
     periodA: 'الفترة A',
     periodB: 'الفترة B',
     beforeAI: 'قبل الذكاء الاصطناعي',
@@ -1215,6 +1279,7 @@ const app = {
   orgLogin: '',
   orgMembers: new Set(),
   orgMembersOnly: false,
+  ratingWeights: { lines: 50, commits: 20, activeDays: 20, prs: 10 },
   developerFilterRaw: '',
   developerFilters: [],
   lang: 'en',
@@ -1245,6 +1310,18 @@ const t = (key, ...args) => {
   const savedTheme = localStorage.getItem('gh_theme') || 'light';
   applyTheme(savedTheme);
 
+  try {
+    const savedWeights = JSON.parse(localStorage.getItem('gh_dev_rating_weights') || 'null');
+    if (savedWeights && typeof savedWeights === 'object') {
+      app.ratingWeights = {
+        lines: Number(savedWeights.lines) || 50,
+        commits: Number(savedWeights.commits) || 20,
+        activeDays: Number(savedWeights.activeDays) || 20,
+        prs: Number(savedWeights.prs) || 10,
+      };
+    }
+  } catch (_) {}
+
   // Language — auto-detect from browser
   const browserLang = navigator.language || navigator.userLanguage || 'en';
   const detectedLang = browserLang.toLowerCase().startsWith('ar') ? 'ar' : 'en';
@@ -1270,6 +1347,7 @@ const t = (key, ...args) => {
   document.getElementById('a-end').value   = fmt(lastMonthEnd);
   document.getElementById('b-start').value = fmt(curMonthStart);
   document.getElementById('b-end').value   = fmt(curMonthEnd);
+  syncRatingWeightInputs();
 })();
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1327,6 +1405,7 @@ function applyLang(lang) {
   if (repoSearch) repoSearch.placeholder = TRANSLATIONS[lang].searchRepos || 'Search…';
   const developerFilter = document.getElementById('inp-author');
   if (developerFilter) developerFilter.placeholder = lang === 'ar' ? 'octocat, hubot' : 'octocat, hubot';
+  syncRatingWeightInputs();
   updateOrgMemberFilterUI();
 }
 
@@ -1533,6 +1612,67 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function syncRatingWeightInputs() {
+  const mapping = {
+    'weight-lines': app.ratingWeights.lines,
+    'weight-commits': app.ratingWeights.commits,
+    'weight-active-days': app.ratingWeights.activeDays,
+    'weight-prs': app.ratingWeights.prs,
+  };
+  Object.entries(mapping).forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (input) input.value = String(value);
+  });
+  refreshRatingWeightsHint();
+}
+
+function refreshRatingWeightsHint() {
+  const hint = document.getElementById('rating-weights-hint');
+  if (!hint) return;
+  hint.textContent = `${t('weightsHint')} ${t(
+    'weightsCurrent',
+    app.ratingWeights.lines,
+    app.ratingWeights.commits,
+    app.ratingWeights.activeDays,
+    app.ratingWeights.prs
+  )}`;
+}
+
+function saveRatingWeights() {
+  localStorage.setItem('gh_dev_rating_weights', JSON.stringify(app.ratingWeights));
+}
+
+function updateRatingWeightsFromUI() {
+  const read = (id, fallback) => {
+    const el = document.getElementById(id);
+    return el ? Math.max(0, Number(el.value) || 0) : fallback;
+  };
+  app.ratingWeights = {
+    lines: read('weight-lines', 50),
+    commits: read('weight-commits', 20),
+    activeDays: read('weight-active-days', 20),
+    prs: read('weight-prs', 10),
+  };
+  saveRatingWeights();
+  syncRatingWeightInputs();
+  if (app.developers.length) {
+    app.developers = applyDeveloperRatings(app.developers);
+    renderDeveloperRatingsChart();
+    renderDevelopersTable();
+  }
+}
+
+function resetRatingWeights() {
+  app.ratingWeights = { lines: 50, commits: 20, activeDays: 20, prs: 10 };
+  saveRatingWeights();
+  syncRatingWeightInputs();
+  if (app.developers.length) {
+    app.developers = applyDeveloperRatings(app.developers);
+    renderDeveloperRatingsChart();
+    renderDevelopersTable();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1976,54 +2116,14 @@ function buildDeveloperReport() {
     const p = app[`period${period.toUpperCase()}`];
     return Math.max(1, Math.round((new Date(p.end) - new Date(p.start)) / 86400000));
   };
-  const maxes = { commitFreq: 0.01, netLinesPerDay: 1, activeRatio: 0.01, prMergeRate: 1 };
-  const ratingMaxes = { lineVolume: 1, commits: 1, activeDays: 1, prsMerged: 1 };
-
   developers.forEach(dev => {
     periods.forEach(period => {
       const stats = dev[period];
       finalizeDeveloperPeriodStats(stats, daysInPeriod(period));
-      maxes.commitFreq = Math.max(maxes.commitFreq, stats.commitFreq);
-      maxes.netLinesPerDay = Math.max(maxes.netLinesPerDay, Math.max(0, stats.netLinesPerDay));
-      maxes.activeRatio = Math.max(maxes.activeRatio, stats.activeRatio);
-      maxes.prMergeRate = Math.max(maxes.prMergeRate, stats.prMergeRate);
-      ratingMaxes.lineVolume = Math.max(ratingMaxes.lineVolume, stats.lineVolume);
-      ratingMaxes.commits = Math.max(ratingMaxes.commits, stats.commits);
-      ratingMaxes.activeDays = Math.max(ratingMaxes.activeDays, stats.activeDaysCount);
-      ratingMaxes.prsMerged = Math.max(ratingMaxes.prsMerged, stats.prsMerged);
     });
   });
 
-  return [...developers.values()]
-    .map(dev => {
-      dev.a.score = computeDeveloperScore(dev.a, maxes);
-      dev.b.score = computeDeveloperScore(dev.b, maxes);
-      dev.a.rating = computeDeveloperRating(dev.a, ratingMaxes);
-      dev.b.rating = computeDeveloperRating(dev.b, ratingMaxes);
-      dev.deltaScore = dev.b.score - dev.a.score;
-      dev.deltaRating = round1(dev.b.rating - dev.a.rating);
-      const hasActivity = dev.a.commits + dev.a.prsOpened + dev.a.issuesOpened + dev.b.commits + dev.b.prsOpened + dev.b.issuesOpened > 0;
-      dev.assessmentKey = !hasActivity
-        ? 'assessmentInactive'
-        : dev.deltaRating >= 1
-          ? 'assessmentImproved'
-          : dev.deltaRating <= -1
-            ? 'assessmentReview'
-            : 'assessmentStable';
-      dev.assessmentClass = dev.assessmentKey === 'assessmentImproved'
-        ? 'pos'
-        : dev.assessmentKey === 'assessmentReview'
-          ? 'neg'
-          : 'neutral';
-      return dev;
-    })
-    .sort((left, right) =>
-      right.b.rating - left.b.rating ||
-      right.b.score - left.b.score ||
-      right.b.commits - left.b.commits ||
-      right.deltaRating - left.deltaRating ||
-      left.label.localeCompare(right.label)
-    );
+  return applyDeveloperRatings([...developers.values()]);
 }
 
 function createDeveloperPeriodStats() {
@@ -2079,20 +2179,85 @@ function computeDeveloperScore(stats, maxes) {
 }
 
 function computeDeveloperRating(stats, maxes) {
+  const weights = getNormalizedRatingWeights();
   const linesScore = (stats.lineVolume / Math.max(maxes.lineVolume, 1)) * 10;
   const commitsScore = (stats.commits / Math.max(maxes.commits, 1)) * 10;
   const activeDaysScore = (stats.activeDaysCount / Math.max(maxes.activeDays, 1)) * 10;
   const prsScore = (stats.prsMerged / Math.max(maxes.prsMerged, 1)) * 10;
   return round1(
-    linesScore * 0.5 +
-    commitsScore * 0.2 +
-    activeDaysScore * 0.2 +
-    prsScore * 0.1
+    linesScore * weights.lines +
+    commitsScore * weights.commits +
+    activeDaysScore * weights.activeDays +
+    prsScore * weights.prs
   );
 }
 
 function round1(n) {
   return Math.round(n * 10) / 10;
+}
+
+function getNormalizedRatingWeights() {
+  const total = Math.max(
+    1,
+    app.ratingWeights.lines +
+    app.ratingWeights.commits +
+    app.ratingWeights.activeDays +
+    app.ratingWeights.prs
+  );
+  return {
+    lines: app.ratingWeights.lines / total,
+    commits: app.ratingWeights.commits / total,
+    activeDays: app.ratingWeights.activeDays / total,
+    prs: app.ratingWeights.prs / total,
+  };
+}
+
+function applyDeveloperRatings(developers) {
+  const maxes = { commitFreq: 0.01, netLinesPerDay: 1, activeRatio: 0.01, prMergeRate: 1 };
+  const ratingMaxes = { lineVolume: 1, commits: 1, activeDays: 1, prsMerged: 1 };
+  developers.forEach(dev => {
+    ['a', 'b'].forEach(period => {
+      const stats = dev[period];
+      maxes.commitFreq = Math.max(maxes.commitFreq, stats.commitFreq);
+      maxes.netLinesPerDay = Math.max(maxes.netLinesPerDay, Math.max(0, stats.netLinesPerDay));
+      maxes.activeRatio = Math.max(maxes.activeRatio, stats.activeRatio);
+      maxes.prMergeRate = Math.max(maxes.prMergeRate, stats.prMergeRate);
+      ratingMaxes.lineVolume = Math.max(ratingMaxes.lineVolume, stats.lineVolume);
+      ratingMaxes.commits = Math.max(ratingMaxes.commits, stats.commits);
+      ratingMaxes.activeDays = Math.max(ratingMaxes.activeDays, stats.activeDaysCount);
+      ratingMaxes.prsMerged = Math.max(ratingMaxes.prsMerged, stats.prsMerged);
+    });
+  });
+  return developers
+    .map(dev => {
+      dev.a.score = computeDeveloperScore(dev.a, maxes);
+      dev.b.score = computeDeveloperScore(dev.b, maxes);
+      dev.a.rating = computeDeveloperRating(dev.a, ratingMaxes);
+      dev.b.rating = computeDeveloperRating(dev.b, ratingMaxes);
+      dev.deltaScore = dev.b.score - dev.a.score;
+      dev.deltaRating = round1(dev.b.rating - dev.a.rating);
+      const hasActivity = dev.a.commits + dev.a.prsOpened + dev.a.issuesOpened + dev.b.commits + dev.b.prsOpened + dev.b.issuesOpened > 0;
+      dev.assessmentKey = !hasActivity
+        ? 'assessmentInactive'
+        : dev.deltaRating >= 1
+          ? 'assessmentImproved'
+          : dev.deltaRating <= -1
+            ? 'assessmentReview'
+            : 'assessmentStable';
+      dev.assessmentClass = dev.assessmentKey === 'assessmentImproved'
+        ? 'pos'
+        : dev.assessmentKey === 'assessmentReview'
+          ? 'neg'
+          : 'neutral';
+      return dev;
+    })
+    .sort((left, right) =>
+      right.b.rating - left.b.rating ||
+      right.b.score - left.b.score ||
+      right.b.commits - left.b.commits ||
+      right.deltaRating - left.deltaRating ||
+      left.label.localeCompare(right.label)
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2103,6 +2268,7 @@ function renderDashboard() {
   const b = calcScore('b');
   const { scoreA, scoreB, normA, normB } = normalizeScore(a, b);
 
+  syncRatingWeightInputs();
   renderLegends();
   renderKPIs(a, b, scoreA, scoreB, normA, normB);
   renderCommitsTimeChart(a, b);
@@ -2818,6 +2984,7 @@ function exportJSON() {
       developerFilter: app.developerFilterRaw,
       orgMembersOnly: app.orgMembersOnly,
       orgLogin: app.orgLogin || '',
+      ratingWeights: app.ratingWeights,
       exportedAt: new Date().toISOString(),
       periodA: app.periodA,
       periodB: app.periodB,
