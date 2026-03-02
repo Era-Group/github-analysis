@@ -629,6 +629,7 @@ html[dir="rtl"] .export-menu button { text-align: right; flex-direction: row-rev
       <span id="repo-count-label" class="text-sm text-muted"></span>
       <div class="flex gap-2">
         <button class="btn btn-secondary text-sm" onclick="selectOwnedRepos()" style="padding:5px 12px" data-i18n="selectMine">Select Mine</button>
+        <button class="btn btn-secondary text-sm" onclick="selectOrgRepos()" style="padding:5px 12px" data-i18n="selectOrgRepos">Select Org Repos</button>
         <button class="btn btn-secondary text-sm" onclick="toggleAllRepos(true)"  style="padding:5px 12px" data-i18n="selectAll">Select All</button>
         <button class="btn btn-secondary text-sm" onclick="toggleAllRepos(false)" style="padding:5px 12px" data-i18n="deselectAll">Deselect All</button>
       </div>
@@ -899,6 +900,7 @@ const TRANSLATIONS = {
     configSubtitle: 'Select repositories, set date ranges, and optionally filter developers.',
     repositories: 'Repositories',
     selectMine: 'Select Mine',
+    selectOrgRepos: 'Select Org Repos',
     selectAll: 'Select All',
     deselectAll: 'Deselect All',
     authorFilter: 'Developer Filter',
@@ -1046,6 +1048,7 @@ const TRANSLATIONS = {
     configSubtitle: 'اختر المستودعات، حدد النطاقات الزمنية، ويمكنك تصفية المطورين اختيارياً.',
     repositories: 'المستودعات',
     selectMine: 'مستودعاتي فقط',
+    selectOrgRepos: 'مستودعات المنظمة',
     selectAll: 'تحديد الكل',
     deselectAll: 'إلغاء الكل',
     authorFilter: 'فلتر المطور',
@@ -1490,6 +1493,16 @@ function selectOwnedRepos() {
   updateRepoSelectionLabel();
 }
 
+function selectOrgRepos() {
+  const orgLogin = (app.orgLogin || '').toLowerCase();
+  document.querySelectorAll('#repos-list .repo-item input[type=checkbox]').forEach(cb => {
+    const ownerLogin = (cb.dataset.ownerLogin || '').toLowerCase();
+    const ownerType = cb.dataset.ownerType || '';
+    cb.checked = orgLogin ? ownerLogin === orgLogin : ownerType === 'Organization';
+  });
+  updateRepoSelectionLabel();
+}
+
 async function fetchOrgMembers(orgLogin) {
   try {
     const members = await ghPaginate(`/orgs/${orgLogin}/members`);
@@ -1585,7 +1598,7 @@ function buildRepoList() {
     item.className = 'repo-item';
     const id = `repo-cb-${i}`;
     item.innerHTML = `
-      <input type="checkbox" id="${id}" value="${repo.full_name}" data-owner-login="${(repo.owner?.login || '').toLowerCase()}" checked />
+      <input type="checkbox" id="${id}" value="${repo.full_name}" data-owner-login="${(repo.owner?.login || '').toLowerCase()}" data-owner-type="${repo.owner?.type || ''}" checked />
       <label for="${id}" title="${repo.full_name}">${repo.name}</label>
       <span class="owner-badge${isOwn ? '' : ' other'}">${repo.owner?.login || '?'}</span>
     `;
