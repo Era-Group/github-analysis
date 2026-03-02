@@ -1,13 +1,13 @@
 <div align="center">
 
-# 📊 GitHub Productivity Analytics
+# 📊 GitHub Activity Comparator
 
-**Measure the real impact of AI coding tools on your development workflow.**
-A zero-dependency, single-file dashboard that compares two time periods side-by-side — before and after adopting AI assistants like GitHub Copilot, Cursor, or Claude.
+**Compare your GitHub activity across any two time periods — visualized, analyzed, and exported.**
+A zero-dependency, single-file tool that puts your real commit history, PRs, and code changes side-by-side so you can see exactly how your workflow has shifted over time.
 
 [![Single File](https://img.shields.io/badge/Architecture-Single%20HTML%20File-58a6ff?style=for-the-badge)]()
 [![No Dependencies](https://img.shields.io/badge/Dependencies-Zero%20(CDN%20only)-3fb950?style=for-the-badge)]()
-[![License](https://img.shields.io/badge/License-MIT-d29922?style=for-the-badge)]()
+[![License](https://img.shields.io/badge/License-GPL--3.0-d29922?style=for-the-badge)](LICENSE)
 
 ![Dark theme dashboard preview](.github/preview-dark.png)
 
@@ -17,16 +17,16 @@ A zero-dependency, single-file dashboard that compares two time periods side-by-
 
 ## ✨ What It Does
 
-Drop your GitHub Personal Access Token in, pick your repositories and date ranges, and get an instant **data-driven answer** to: *"Did AI tools actually make me more productive?"*
+Pick any two date ranges, select your repositories, and instantly see how your GitHub activity compares between them — commit frequency, lines of code, PR throughput, issue close rates, and more.
 
-The dashboard fetches your real GitHub activity, computes a composite **Productivity Score**, and renders everything as interactive charts, heatmaps, and auto-generated insights — entirely in the browser. No server. No account. No tracking.
+Everything runs entirely in your browser. No server, no account, no tracking. Just your GitHub token and your data.
 
 ---
 
 ## 🚀 Features
 
-### 📈 Productivity Score
-A weighted composite metric combining commit frequency, lines of code, files changed, and PR throughput — normalized between periods so you can compare apples to apples.
+### 📈 Activity Score
+A weighted composite metric combining commit frequency, lines of code, files changed, and PR throughput — normalized between periods so both are always comparable regardless of length.
 
 ### 🗂 6 Dashboard Sections
 
@@ -37,7 +37,7 @@ A weighted composite metric combining commit frequency, lines of code, files cha
 | **Heatmap** | Side-by-side calendar heatmaps for both periods |
 | **PRs & Issues** | Per-repository table with merge times and issue close rates |
 | **Repositories** | Card grid with per-repo stats + click-to-expand modal with recent commits |
-| **AI Insights** | Auto-generated analysis paragraphs in **English and Arabic** |
+| **Insights** | Auto-generated analysis paragraphs comparing both periods, in **English and Arabic** |
 
 ### 📤 Export Everything
 - **JSON** — full raw data payload
@@ -109,13 +109,13 @@ index.html  (~2,450 lines, ~90 KB)
 
 ---
 
-## 📊 Productivity Score Formula
+## 📊 Activity Score Formula
 
 ```
 score = (commitFreq × 30) + (linesPerDay × 0.5) + (mergedPRs × 5) + (filesPerDay × 2)
 ```
 
-Both periods are then normalized to a 0–100 scale so the scores are always comparable regardless of period length.
+Both periods are normalized to a 0–100 scale so the scores are always comparable regardless of period length.
 
 ---
 
@@ -167,7 +167,7 @@ cd GithubDashboard
 
 ## 📄 License
 
-MIT — use it, fork it, embed it, ship it.
+GPL-3.0 — see [LICENSE](LICENSE) for details.
 
 ---
 
