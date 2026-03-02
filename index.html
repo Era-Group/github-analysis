@@ -949,6 +949,8 @@ const TRANSLATIONS = {
     linesAdded: 'Lines Added',
     prsMerged: 'PRs Merged',
     reposFound: (n) => `${n} repositories found`,
+    reposSelected: (s, n) => `${s} selected / ${n} total`,
+    reposVisible: (s, v, n) => `${s} selected / ${v} visible / ${n} total`,
     processing: (i, n) => `Processing ${i}/${n} repos`,
     repoSkipped: (n) => `(${n} repo(s) skipped due to access errors)`,
     noActivity: 'No activity in this period',
@@ -1094,6 +1096,8 @@ const TRANSLATIONS = {
     linesAdded: 'الأسطر المضافة',
     prsMerged: 'الـ PRs المدمجة',
     reposFound: (n) => `تم العثور على ${n} مستودع`,
+    reposSelected: (s, n) => `${s} محدد / ${n} إجمالي`,
+    reposVisible: (s, v, n) => `${s} محدد / ${v} ظاهر / ${n} إجمالي`,
     processing: (i, n) => `معالجة ${i}/${n} مستودع`,
     repoSkipped: (n) => `(تم تخطي ${n} مستودع بسبب أخطاء الوصول)`,
     noActivity: 'لا يوجد نشاط في هذه الفترة',
@@ -1469,10 +1473,21 @@ function handleOrgMembersToggle(checked) {
   updateOrgMemberFilterUI();
 }
 
+function updateRepoSelectionLabel() {
+  const total = app.repos.length;
+  const selected = document.querySelectorAll('#repos-list input[type=checkbox]:checked').length;
+  const label = document.getElementById('repo-count-label');
+  if (label) label.textContent = t('reposSelected', selected, total);
+}
+
 function selectOwnedRepos() {
+  const targetOwner = app.username.toLowerCase();
   document.querySelectorAll('#repos-list .repo-item input[type=checkbox]').forEach(cb => {
-    cb.checked = cb.dataset.ownerLogin === app.username.toLowerCase();
+    const fullName = (cb.value || '').toLowerCase();
+    const ownerLogin = (cb.dataset.ownerLogin || '').toLowerCase();
+    cb.checked = ownerLogin === targetOwner || fullName.startsWith(`${targetOwner}/`);
   });
+  updateRepoSelectionLabel();
 }
 
 async function fetchOrgMembers(orgLogin) {
@@ -1576,12 +1591,16 @@ function buildRepoList() {
     `;
     list.appendChild(item);
   });
-  document.getElementById('repo-count-label').textContent = t('reposFound', app.repos.length);
+  list.onchange = (event) => {
+    if (event.target?.matches?.('input[type=checkbox]')) updateRepoSelectionLabel();
+  };
+  updateRepoSelectionLabel();
 }
 
 function toggleAllRepos(checked) {
   document.querySelectorAll('#repos-list .repo-item:not([style*="display: none"]) input[type=checkbox]')
     .forEach(cb => cb.checked = checked);
+  updateRepoSelectionLabel();
 }
 
 function filterRepos(query) {
@@ -1593,8 +1612,9 @@ function filterRepos(query) {
   // Update visible count
   const visible = document.querySelectorAll('#repos-list .repo-item:not([style*="display: none"])').length;
   const total   = app.repos.length;
+  const selectedVisible = document.querySelectorAll('#repos-list .repo-item:not([style*="display: none"]) input[type=checkbox]:checked').length;
   document.getElementById('repo-count-label').textContent =
-    q ? `${visible} / ${t('reposFound', total)}` : t('reposFound', total);
+    q ? t('reposVisible', selectedVisible, visible, total) : t('reposSelected', document.querySelectorAll('#repos-list input[type=checkbox]:checked').length, total);
 }
 
 // ═══════════════════════════════════════════════════════════════════
